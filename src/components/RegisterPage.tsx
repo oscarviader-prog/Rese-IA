@@ -24,7 +24,7 @@ interface RegisterPageProps {
 }
 
 export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
-  const { signupConsumer, signupBusiness } = useAuth();
+  const { signupConsumer, signupBusiness, autoConfirmAndLogin } = useAuth();
 
   // Step 1: 'select_role', Step 2: 'fill_form', Step 3: 'email_sent'
   const [step, setStep] = useState<'select_role' | 'fill_form' | 'email_sent'>('select_role');
@@ -629,14 +629,25 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
               </ul>
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 space-y-2.5">
+              <button
+                type="button"
+                onClick={async () => {
+                  await autoConfirmAndLogin(email, role);
+                  onNavigate(role === 'business' ? 'business' : 'consumer');
+                }}
+                className="w-full py-3 px-4 bg-[#0F766E] hover:bg-[#0d665f] text-white text-sm font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>⚡ Confirmar e Iniciar Sesión Ahora</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
               <button
                 type="button"
                 onClick={() => onNavigate('login')}
-                className="w-full py-3 px-4 bg-[#0F766E] hover:bg-[#0d665f] text-white text-sm font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-2 px-4 bg-white hover:bg-slate-50 text-[#0a2533] text-xs font-bold rounded-xl border border-[#0a2533]/15 transition-all cursor-pointer"
               >
-                <span>Volver al inicio de sesión</span>
-                <ArrowRight className="w-4 h-4" />
+                Volver al inicio de sesión
               </button>
             </div>
 

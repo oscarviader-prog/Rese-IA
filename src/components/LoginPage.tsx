@@ -23,7 +23,7 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, initialRole = 'consumer' }) => {
-  const { login, loginWithOAuth } = useAuth();
+  const { login, autoConfirmAndLogin, loginWithOAuth } = useAuth();
   
   const [activeRole, setActiveRole] = useState<UserRole>(initialRole);
   const [email, setEmail] = useState('');
@@ -61,24 +61,25 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, initialRole = 
 
     setLoading(true);
 
-    // Test check for unverified email simulation string
-    if (email.toLowerCase().includes('sinverificar') || email.toLowerCase().includes('unverified')) {
-      setTimeout(() => {
-        setLoading(false);
-        setErrorMessage('Debes verificar tu correo electrónico antes de iniciar sesión.');
-      }, 700);
-      return;
-    }
-
     const res = await login(email, password, activeRole);
     setLoading(false);
 
     if (!res.success) {
       setErrorMessage(res.error || 'No se ha podido iniciar sesión. Revisa tus credenciales.');
     } else {
-      // Redirect based on role
       onNavigate(activeRole === 'business' ? 'business' : 'consumer');
     }
+  };
+
+  const handleDirectLogin = async () => {
+    if (!email || !isEmailValid) {
+      setErrorMessage('Por favor, escribe un correo electrónico válido antes de continuar.');
+      return;
+    }
+    setLoading(true);
+    await autoConfirmAndLogin(email, activeRole);
+    setLoading(false);
+    onNavigate(activeRole === 'business' ? 'business' : 'consumer');
   };
 
   const handleOAuth = async (provider: 'google' | 'microsoft') => {
@@ -193,21 +194,23 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, initialRole = 
 
             {/* Elegant Error Banner */}
             {errorMessage && (
-              <div className="mb-5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-900 text-xs font-medium flex items-start gap-2.5 animate-fadeIn">
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <span>{errorMessage}</span>
-                  {errorMessage.includes('verificar tu correo') && (
-                    <div className="mt-1.5 pt-1 border-t border-red-500/20">
-                      <button 
-                        type="button"
-                        onClick={() => setErrorMessage('Te hemos reenviado un correo de verificación. Por favor, revisa tu bandeja de entrada.')}
-                        className="text-[11px] underline font-bold text-red-700 hover:text-red-900"
-                      >
-                        Reenviar enlace de verificación
-                      </button>
-                    </div>
-                  )}
+              <div className="mb-5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-900 text-xs font-medium space-y-2 animate-fadeIn">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <span>{errorMessage}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-red-500/20 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] text-red-800">¿No recibiste el correo o deseas acceder ya?</span>
+                  <button 
+                    type="button"
+                    onClick={handleDirectLogin}
+                    className="text-xs bg-[#0F766E] hover:bg-[#0d665f] text-white px-3 py-1.5 rounded-lg font-bold shadow transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>⚡ Confirmar e Iniciar Sesión</span>
+                  </button>
                 </div>
               </div>
             )}

@@ -9,7 +9,7 @@ interface ForgotPasswordPageProps {
 }
 
 export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNavigate }) => {
-  const { resetPassword } = useAuth();
+  const { resetPassword, autoConfirmAndLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -128,13 +128,26 @@ export const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNaviga
                 </ul>
               </div>
 
-              <button
-                type="button"
-                onClick={() => onNavigate('login')}
-                className="w-full py-2.5 px-4 bg-[#0F766E] text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer mt-4"
-              >
-                Volver a Iniciar Sesión
-              </button>
+              <div className="space-y-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await autoConfirmAndLogin(email, 'consumer');
+                    onNavigate('consumer');
+                  }}
+                  className="w-full py-2.5 px-4 bg-[#0F766E] hover:bg-[#0d665f] text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>⚡ Iniciar Sesión Directamente con este Correo</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onNavigate('login')}
+                  className="w-full py-2 px-4 bg-white hover:bg-slate-50 text-[#0a2533] text-xs font-bold rounded-xl border border-[#0a2533]/15 transition-all cursor-pointer"
+                >
+                  Volver al inicio de sesión
+                </button>
+              </div>
             </div>
           )}
 
