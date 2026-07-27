@@ -248,7 +248,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (supabase) {
       try {
-        const { error } = await supabase.auth.signUp({
+        const { data: resData, error } = await supabase.auth.signUp({
           email: data.email,
           password: data.pass,
           options: {
@@ -285,6 +285,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           return { success: false, error: errMsg };
         }
+
+        // Save user record locally for instant reactivity
+        const createdUser: UserProfile = {
+          id: resData.user?.id || ('consumer-' + Date.now()),
+          email: data.email,
+          role: 'consumer',
+          firstName: data.firstName,
+          lastName: data.lastName,
+          emailVerified: !!resData.user?.email_confirmed_at,
+          createdAt: new Date().toISOString(),
+        };
+        saveMockUser(createdUser);
+
         setLoading(false);
         return { success: true };
       } catch {
@@ -328,7 +341,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (supabase) {
       try {
-        const { error } = await supabase.auth.signUp({
+        const { data: resData, error } = await supabase.auth.signUp({
           email: data.email,
           password: data.pass,
           options: {
@@ -367,6 +380,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           return { success: false, error: errMsg };
         }
+
+        // Save user record locally for instant reactivity
+        const createdUser: UserProfile = {
+          id: resData.user?.id || ('biz-' + Date.now()),
+          email: data.email,
+          role: 'business',
+          companyName: data.companyName,
+          firstName: data.responsibleName,
+          authorizedRep: data.isAuthorized,
+          emailVerified: !!resData.user?.email_confirmed_at,
+          createdAt: new Date().toISOString(),
+        };
+        saveMockUser(createdUser);
+
         setLoading(false);
         return { success: true };
       } catch {
