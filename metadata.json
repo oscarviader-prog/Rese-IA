@@ -1,0 +1,6 @@
+{
+  "name": "ReseñIA",
+  "description": "Sintetizador de reseñas e índice de confianza anti-bots para consumidores y empresas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+:root {
+  --bg-space: #02040a;
+  --neon-blue: #00f2ff;
+  --pastel-blue: #d1eefc;
+  --ink: #0a2533;
+}
+
+@layer utilities {
+  .font-serif-title {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+  .font-sans-ui {
+    font-family: 'Instrument Sans', system-ui, sans-serif;
+  }
+  .font-mono-code {
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .font-display {
+    font-family: 'Syne', 'Space Grotesk', sans-serif;
+  }
+  .title-minimalist {
+    font-weight: 200;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+    text-transform: uppercase;
+  }
+  .mono-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .glass-nav {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.3);
+    box-shadow: 0 0 6px rgba(0, 242, 255, 0.9);
+  }
+}
+
+.animate-twinkle {
+  animation: twinkle var(--twinkle-duration, 3s) infinite ease-in-out var(--twinkle-delay, 0s);
+}
+
+.pastel-blue-card {
+  background-color: var(--pastel-blue);
+  color: var(--ink);
+  border: 1px solid rgba(0, 242, 255, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 242, 255, 0.15);
+  border-radius: 12px;
+}
+
+/* Custom scrollbars for clean experience */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #02040a;
+}
+::-webkit-scrollbar-thumb {
+  background: #00f2ff;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #38bdf8;
+}
