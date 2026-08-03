@@ -13,6 +13,7 @@ interface AuthContextType {
   loginWithOAuth: (provider: 'google' | 'microsoft') => Promise<void>;
   logout: () => void;
   verifyEmailSimulated: (email: string) => void;
+  updateProfile: (updatedData: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -529,6 +530,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateProfile = async (updatedData: Partial<UserProfile>): Promise<{ success: boolean; error?: string }> => {
+    if (!user) return { success: false, error: 'No hay usuario autenticado' };
+
+    const newProfile: UserProfile = {
+      ...user,
+      ...updatedData,
+    };
+
+    setUser(newProfile);
+    setCurrentStoredUser(newProfile);
+    saveMockUser(newProfile);
+
+    if (supabase) {
+      try {
+        await supabase.auth.updateUser({
+          data: {
+            first_name: newProfile.firstName,
+            last_name: newProfile.lastName,
+            company_name: newProfile.companyName,
+            phone: newProfile.phone,
+            city: newProfile.city,
+            bio: newProfile.bio,
+            avatar_url: newProfile.avatarUrl,
+          }
+        });
+      } catch {
+        // Local state already saved
+      }
+    }
+
+    return { success: true };
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -542,6 +576,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithOAuth,
         logout,
         verifyEmailSimulated,
+        updateProfile,
       }}
     >
       {children}

@@ -40,7 +40,7 @@ function MainApp() {
           )}
 
           {currentView === 'consumer' && (
-            <ConsumerView />
+            <ConsumerView searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
           )}
 
           {currentView === 'business' && (

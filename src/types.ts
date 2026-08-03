@@ -12,11 +12,15 @@ export interface UserProfile {
   authorizedRep?: boolean;
   emailVerified: boolean;
   createdAt: string;
+  avatarUrl?: string;
+  phone?: string;
+  city?: string;
+  bio?: string;
 }
 
 export interface NewsItem {
   id: string;
-  badge: 'Nuevo' | 'Oferta' | 'Tendencia';
+  badge: 'Nuevo' | 'Oferta' | 'Tendencia' | 'Especial';
   badgeColor: string;
   title: string;
   subtitle: string;
