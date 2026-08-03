@@ -917,3 +917,4 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({ searchQuery = '', se
     </div>
   );
 };
+<ReservationModal />
