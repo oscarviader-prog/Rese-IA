@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { PastelCard } from './PastelCard';
 import { NewsItem, NewReview } from '../types';
 import { ReviewModal } from './ReviewModal';
+import ReservationModal from './ReservationModal';
 import {
   Sparkles,
   Search,
