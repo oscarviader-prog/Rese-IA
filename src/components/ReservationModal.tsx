@@ -6,6 +6,7 @@ export default function ReservationModal() {
   const [reservationDate, setReservationDate] = React.useState("");
   const [reservationTime, setReservationTime] = React.useState("");
   const [people, setPeople] = React.useState(1);
+  const [notes, setNotes] = React.useState("");
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
@@ -63,10 +64,12 @@ export default function ReservationModal() {
   onChange={(e) => setPeople(Number(e.target.value))}
 />
 
-        <textarea
-          placeholder="Observaciones"
-          className="w-full border rounded-lg p-2"
-        />
+<textarea
+  placeholder="Observaciones"
+  className="w-full border rounded-lg p-2"
+  value={notes}
+  onChange={(e) => setNotes(e.target.value)}
+/>
 
         <button
           type="submit"
