@@ -3,6 +3,8 @@ import { PastelCard } from './PastelCard';
 import { NewReview } from '../types';
 import { ReviewModal } from './ReviewModal';
 import { SearchBar, PlaceResult } from './SearchBar';
+import { createReservation } from "../lib/reservations";
+import { supabase } from "../lib/supabase";
 import {
   Sparkles,
   PlusCircle,
