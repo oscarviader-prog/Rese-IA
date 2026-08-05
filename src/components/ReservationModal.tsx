@@ -5,6 +5,7 @@ export default function ReservationModal() {
   const [businessName, setBusinessName] = React.useState("");
   const [reservationDate, setReservationDate] = React.useState("");
   const [reservationTime, setReservationTime] = React.useState("");
+  const [people, setPeople] = React.useState(1);
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
@@ -53,12 +54,14 @@ export default function ReservationModal() {
   onChange={(e) => setReservationTime(e.target.value)}
 />
 
-        <input
-          type="number"
-          min="1"
-          placeholder="Número de personas"
-          className="w-full border rounded-lg p-2"
-        />
+<input
+  type="number"
+  min="1"
+  placeholder="Número de personas"
+  className="w-full border rounded-lg p-2"
+  value={people}
+  onChange={(e) => setPeople(Number(e.target.value))}
+/>
 
         <textarea
           placeholder="Observaciones"
