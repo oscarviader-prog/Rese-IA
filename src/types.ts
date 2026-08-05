@@ -16,6 +16,7 @@ export interface UserProfile {
   phone?: string;
   city?: string;
   bio?: string;
+  password?: string;
 }
 
 export interface NewsItem {

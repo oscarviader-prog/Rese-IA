@@ -23,6 +23,7 @@ export function getMockUsers(): UserProfile[] {
           lastName: 'García',
           emailVerified: true,
           createdAt: new Date().toISOString(),
+          password: '123456',
         },
         {
           id: 'mock-2',
@@ -33,6 +34,7 @@ export function getMockUsers(): UserProfile[] {
           authorizedRep: true,
           emailVerified: true,
           createdAt: new Date().toISOString(),
+          password: '123456',
         }
       ];
       localStorage.setItem(MOCK_USERS_KEY, JSON.stringify(defaultUsers));

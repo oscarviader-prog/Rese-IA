@@ -99,45 +99,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'Por favor, introduce tu contraseña.' };
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+
     if (supabase) {
       try {
         const { data, error } = await supabase.auth.signInWithPassword({
-          email,
+          email: cleanEmail,
           password: pass,
         });
 
         if (error) {
           setLoading(false);
-          let errText = error.message;
-          const mockUsers = getMockUsers();
-          const found = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+          const errTextLower = error.message.toLowerCase();
 
-          if (found) {
-            // User exists in local storage / mock registry
-            const loggedUser = { ...found, role, emailVerified: true };
-            saveMockUser(loggedUser);
-            setUser(loggedUser);
-            setCurrentStoredUser(loggedUser);
-            return { success: true };
+          // If password was wrong or user doesn't exist in Supabase auth
+          if (errTextLower.includes('invalid login credentials') || errTextLower.includes('invalid_credentials')) {
+            const mockUsers = getMockUsers();
+            const found = mockUsers.find(u => u.email.toLowerCase() === cleanEmail);
+
+            // If user exists in mock registry, verify stored password
+            if (found && found.password) {
+              if (found.password === pass) {
+                const loggedUser = { ...found, role, emailVerified: true };
+                saveMockUser(loggedUser);
+                setUser(loggedUser);
+                setCurrentStoredUser(loggedUser);
+                return { success: true };
+              } else {
+                return { success: false, error: 'Contraseña incorrecta. Comprueba la contraseña que usaste al registrarte.' };
+              }
+            }
+
+            return { success: false, error: 'Credenciales incorrectas. Comprueba tu correo y contraseña.' };
           }
 
-          if (errText.toLowerCase().includes('invalid login credentials')) {
-            errText = 'Credenciales incorrectas o correo electrónico no verificado.';
-          } else if (errText.toLowerCase().includes('email not confirmed')) {
-            errText = 'Debes verificar tu correo electrónico antes de iniciar sesión. Si no recibiste el correo, utiliza la confirmación directa.';
-          } else if (errText.toLowerCase().includes('invalid path') || errText.toLowerCase().includes('redirect') || errText.toLowerCase().includes('url')) {
-            errText = 'Error de configuración de servidor. Puedes acceder directamente con el botón de auto-confirmación.';
+          if (errTextLower.includes('email not confirmed')) {
+            const mockUsers = getMockUsers();
+            const found = mockUsers.find(u => u.email.toLowerCase() === cleanEmail);
+            if (found && found.password && found.password !== pass) {
+              return { success: false, error: 'Contraseña incorrecta.' };
+            }
+            return {
+              success: false,
+              error: 'Debes verificar tu correo electrónico antes de iniciar sesión. Si no recibiste el correo, utiliza la confirmación directa.'
+            };
           }
-          return { success: false, error: errText };
+
+          if (errTextLower.includes('invalid path') || errTextLower.includes('redirect') || errTextLower.includes('url')) {
+            const mockUsers = getMockUsers();
+            const found = mockUsers.find(u => u.email.toLowerCase() === cleanEmail);
+            if (found) {
+              if (found.password && found.password !== pass) {
+                return { success: false, error: 'Contraseña incorrecta.' };
+              }
+              const loggedUser = { ...found, role, emailVerified: true };
+              saveMockUser(loggedUser);
+              setUser(loggedUser);
+              setCurrentStoredUser(loggedUser);
+              return { success: true };
+            }
+          }
+
+          return { success: false, error: 'Error al iniciar sesión: ' + error.message };
         }
 
         if (data.user) {
           if (!data.user.email_confirmed_at) {
-            // Check if mock user has been saved or allow auto-login
             const mockUsers = getMockUsers();
-            const found = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+            const found = mockUsers.find(u => u.email.toLowerCase() === cleanEmail);
             if (found) {
+              if (found.password && found.password !== pass) {
+                setLoading(false);
+                return { success: false, error: 'Contraseña incorrecta.' };
+              }
               found.emailVerified = true;
+              found.password = pass;
               saveMockUser(found);
               setUser(found);
               setCurrentStoredUser(found);
@@ -155,7 +191,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const meta = data.user.user_metadata || {};
           const profile: UserProfile = {
             id: data.user.id,
-            email: data.user.email || email,
+            email: data.user.email || cleanEmail,
             role: (meta.role as UserRole) || role,
             firstName: meta.first_name,
             lastName: meta.last_name,
@@ -163,56 +199,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             authorizedRep: meta.authorized_rep,
             emailVerified: true,
             createdAt: data.user.created_at,
+            password: pass,
           };
           setUser(profile);
           setCurrentStoredUser(profile);
+          saveMockUser(profile);
           setLoading(false);
           return { success: true };
         }
-      } catch {
-        // Fallback to local user state
-        const mockUsers = getMockUsers();
-        const found = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-        if (found) {
-          const loggedUser = { ...found, role, emailVerified: true };
-          saveMockUser(loggedUser);
-          setUser(loggedUser);
-          setCurrentStoredUser(loggedUser);
-          setLoading(false);
-          return { success: true };
-        }
+      } catch (err) {
+        console.warn('Supabase sign-in catch fallback:', err);
       }
     }
 
     // Fallback/Demo Mock Auth logic
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 400));
     const mockUsers = getMockUsers();
-    const found = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const found = mockUsers.find(u => u.email.toLowerCase() === cleanEmail);
 
     if (found) {
-      const loggedUser = { ...found, role, emailVerified: true };
+      if (found.password && found.password !== pass) {
+        setLoading(false);
+        return { success: false, error: 'Contraseña incorrecta.' };
+      }
+      const loggedUser = { ...found, role, emailVerified: true, password: pass };
       saveMockUser(loggedUser);
       setUser(loggedUser);
       setCurrentStoredUser(loggedUser);
       setLoading(false);
       return { success: true };
     } else {
-      if (pass.length < 6) {
-        setLoading(false);
-        return { success: false, error: 'Contraseña incorrecta o usuario no registrado.' };
-      }
-      const newUser: UserProfile = {
-        id: 'user-' + Date.now(),
-        email,
-        role,
-        emailVerified: true,
-        createdAt: new Date().toISOString(),
-      };
-      saveMockUser(newUser);
-      setUser(newUser);
-      setCurrentStoredUser(newUser);
       setLoading(false);
-      return { success: true };
+      return { success: false, error: 'Usuario no encontrado o contraseña incorrecta.' };
     }
   };
 
@@ -280,6 +298,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               lastName: data.lastName,
               emailVerified: false,
               createdAt: new Date().toISOString(),
+              password: data.pass,
             };
             saveMockUser(newUser);
             return { success: true };
@@ -296,6 +315,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           lastName: data.lastName,
           emailVerified: !!resData.user?.email_confirmed_at,
           createdAt: new Date().toISOString(),
+          password: data.pass,
         };
         saveMockUser(createdUser);
 
@@ -310,6 +330,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           lastName: data.lastName,
           emailVerified: false,
           createdAt: new Date().toISOString(),
+          password: data.pass,
         };
         saveMockUser(newUser);
         setLoading(false);
@@ -326,6 +347,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastName: data.lastName,
       emailVerified: false,
       createdAt: new Date().toISOString(),
+      password: data.pass,
     };
     saveMockUser(newUser);
 
@@ -375,6 +397,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               authorizedRep: data.isAuthorized,
               emailVerified: false,
               createdAt: new Date().toISOString(),
+              password: data.pass,
             };
             saveMockUser(newUser);
             return { success: true };
@@ -392,6 +415,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           authorizedRep: data.isAuthorized,
           emailVerified: !!resData.user?.email_confirmed_at,
           createdAt: new Date().toISOString(),
+          password: data.pass,
         };
         saveMockUser(createdUser);
 
@@ -407,6 +431,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           authorizedRep: data.isAuthorized,
           emailVerified: false,
           createdAt: new Date().toISOString(),
+          password: data.pass,
         };
         saveMockUser(newUser);
         setLoading(false);
@@ -424,6 +449,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       authorizedRep: data.isAuthorized,
       emailVerified: false,
       createdAt: new Date().toISOString(),
+      password: data.pass,
     };
     saveMockUser(newUser);
 

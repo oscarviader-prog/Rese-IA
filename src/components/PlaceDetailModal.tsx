@@ -55,64 +55,6 @@ interface PlaceDetailModalProps {
   onClose: () => void;
 }
 
-// Fallback details if Edge function offline/unauthenticated
-const MOCK_PLACE_DETAILS: Record<string, GooglePlaceDetails> = {
-  'ChIJN1t_tDeuEmsRUsoyG83frY4': {
-    id: 'ChIJN1t_tDeuEmsRUsoyG83frY4',
-    displayName: { text: 'La Tasca de Marea' },
-    formattedAddress: 'Paseo de Las Canteras 42, Las Palmas de Gran Canaria',
-    rating: 4.6,
-    userRatingCount: 1284,
-    internationalPhoneNumber: '+34 928 12 34 56',
-    websiteUri: 'https://latascademarea.es',
-    primaryTypeDisplayName: { text: 'Restaurante Canario' },
-    reviews: [
-      {
-        authorAttribution: { displayName: 'Carlos Ruiz' },
-        rating: 5,
-        text: { text: 'El pulpo a la brasa estaba exquisito y súper tierno. Muy buena atención aunque tuvimos que esperar 15 minutos por la mesa.' },
-        relativePublishTimeDescription: 'Ayer'
-      },
-      {
-        authorAttribution: { displayName: 'Elena Gómez' },
-        rating: 4,
-        text: { text: 'Excelente ceviche de corvina y vino canario de la casa. El precio del menú de mediodía está genial.' },
-        relativePublishTimeDescription: 'Hace 3 días'
-      },
-      {
-        authorAttribution: { displayName: 'Mateo Fernández' },
-        rating: 3,
-        text: { text: 'La comida riquísima pero el servicio fue lento en la hora punta del sábado.' },
-        relativePublishTimeDescription: 'Hace 1 semana'
-      }
-    ]
-  },
-  'ChIJ2eUsp4WvEmsR07Kk9a6J_40': {
-    id: 'ChIJ2eUsp4WvEmsR07Kk9a6J_40',
-    displayName: { text: 'Marisquería El Ancla' },
-    formattedAddress: 'Calle Sagasta 12, Las Canteras, Las Palmas',
-    rating: 4.8,
-    userRatingCount: 940,
-    internationalPhoneNumber: '+34 928 98 76 54',
-    websiteUri: 'https://marisqueriatelancla.com',
-    primaryTypeDisplayName: { text: 'Marisquería' },
-    reviews: [
-      {
-        authorAttribution: { displayName: 'Marta Alonso' },
-        rating: 5,
-        text: { text: 'Servicio de 10 y el arroz con bogavante increíble. Totalmente recomendado si buscas marisco de verdad.' },
-        relativePublishTimeDescription: 'Hace 2 días'
-      },
-      {
-        authorAttribution: { displayName: 'Javier Vega' },
-        rating: 4,
-        text: { text: 'Gambas al ajillo muy buenas y camareros atentos. La paella tardó un poquito pero mereció la pena.' },
-        relativePublishTimeDescription: 'Hace 5 días'
-      }
-    ]
-  }
-};
-
 export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onClose }) => {
   const [details, setDetails] = useState<GooglePlaceDetails | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -144,44 +86,23 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
 
         if (res.error) {
           console.warn('Edge function get-place-details note:', res.error);
-          // Fallback to mock place or dynamic generated detail
-          const fallback = MOCK_PLACE_DETAILS[placeId] || {
+          setDetails({
             id: placeId,
             displayName: { text: 'Establecimiento Seleccionado' },
-            formattedAddress: 'Dirección verificada en Google Maps',
-            rating: 4.5,
-            userRatingCount: 320,
-            internationalPhoneNumber: '+34 900 123 456',
-            websiteUri: 'https://google.com/maps',
-            primaryTypeDisplayName: { text: 'Negocio Verificado' },
-            reviews: [
-              {
-                authorAttribution: { displayName: 'Cliente Verificado' },
-                rating: 5,
-                text: { text: 'Excelente atención y servicio impecable en este local.' },
-                relativePublishTimeDescription: 'Hace 2 días'
-              }
-            ]
-          };
-          setDetails(fallback);
+            formattedAddress: 'Google Places ID: ' + placeId,
+          });
         } else if (res.data) {
           setDetails(res.data);
         } else {
-          setDetails(MOCK_PLACE_DETAILS[placeId] || null);
+          setDetails(null);
         }
       } catch (err) {
         console.error('Error fetching place details:', err);
-        const fallback = MOCK_PLACE_DETAILS[placeId] || {
+        setDetails({
           id: placeId,
-          displayName: { text: 'Negocio Seleccionado' },
-          formattedAddress: 'Dirección de Google Maps',
-          rating: 4.4,
-          userRatingCount: 150,
-          internationalPhoneNumber: '+34 900 000 000',
-          websiteUri: '',
-          reviews: []
-        };
-        setDetails(fallback);
+          displayName: { text: 'Establecimiento Seleccionado' },
+          formattedAddress: 'Google Places ID: ' + placeId,
+        });
       } finally {
         setLoading(false);
       }

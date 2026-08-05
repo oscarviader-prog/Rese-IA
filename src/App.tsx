@@ -11,19 +11,24 @@ import { ForgotPasswordPage } from './components/ForgotPasswordPage';
 import { PlaceDetailModal } from './components/PlaceDetailModal';
 import { Footer } from './components/Footer';
 import { AuthProvider } from './context/AuthContext';
+import { PlaceResult } from './components/SearchBar';
 
 function MainApp() {
   const [currentView, setCurrentView] = useState<ViewState>('landing');
-  const [searchQuery, setSearchQuery] = useState('La Tasca de Marea · Las Palmas');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
+  const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null);
 
   const handleNavigate = (view: ViewState) => {
     setCurrentView(view);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleSelectPlace = (placeId: string) => {
+  const handleSelectPlace = (placeId: string, place?: PlaceResult) => {
     setSelectedPlaceId(placeId);
+    if (place) {
+      setSelectedPlace(place);
+    }
     if (currentView !== 'consumer') {
       setCurrentView('consumer');
     }
@@ -54,6 +59,7 @@ function MainApp() {
               searchQuery={searchQuery} 
               setSearchQuery={setSearchQuery} 
               onSelectPlace={handleSelectPlace}
+              selectedPlace={selectedPlace}
             />
           )}
 

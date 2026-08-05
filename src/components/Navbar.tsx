@@ -3,14 +3,14 @@ import { ViewState } from '../types';
 import { ArrowLeft, Search, ShieldCheck, Building2, User, LogIn, UserPlus, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ProfileModal } from './ProfileModal';
-import { SearchBar } from './SearchBar';
+import { SearchBar, PlaceResult } from './SearchBar';
 
 interface NavbarProps {
   currentView: ViewState;
   onNavigate: (view: ViewState) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  onSelectPlace?: (placeId: string) => void;
+  onSelectPlace?: (placeId: string, place?: PlaceResult) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -53,9 +53,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* View Switcher & Search (Consumer) */}
           {currentView === 'consumer' && (
-            <div className="relative w-full sm:w-80 my-1 sm:my-0">
+            <div className="relative w-full sm:w-96 md:w-[480px] my-1 sm:my-0">
               <SearchBar 
-                onSelectPlace={(id) => onSelectPlace?.(id)}
+                onSelectPlace={(id, place) => onSelectPlace?.(id, place)}
                 placeholder="Buscar en Google Places..."
               />
             </div>
