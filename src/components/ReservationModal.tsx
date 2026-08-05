@@ -3,6 +3,7 @@ import React from "react";
 
 export default function ReservationModal() {
   const [businessName, setBusinessName] = React.useState("");
+  const [reservationDate, setReservationDate] = React.useState("");
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
@@ -37,10 +38,12 @@ export default function ReservationModal() {
   onChange={(e) => setBusinessName(e.target.value)}
 />
 
-        <input
-          type="date"
-          className="w-full border rounded-lg p-2"
-        />
+<input
+  type="date"
+  className="w-full border rounded-lg p-2"
+  value={reservationDate}
+  onChange={(e) => setReservationDate(e.target.value)}
+/>
 
         <input
           type="time"
