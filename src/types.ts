@@ -50,14 +50,4 @@ export interface NewReview {
   comment: string;
   date: string;
 }
-export interface Reservation {
-  id: string;
-  user_id: string;
-  business_name: string;
-  reservation_date: string;
-  reservation_time: string;
-  people: number;
-  notes: string;
-  status: string;
-  created_at: string;
-}
+

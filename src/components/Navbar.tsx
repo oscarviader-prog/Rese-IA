@@ -3,12 +3,14 @@ import { ViewState } from '../types';
 import { ArrowLeft, Search, ShieldCheck, Building2, User, LogIn, UserPlus, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ProfileModal } from './ProfileModal';
+import { SearchBar } from './SearchBar';
 
 interface NavbarProps {
   currentView: ViewState;
   onNavigate: (view: ViewState) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  onSelectPlace?: (placeId: string) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -16,6 +18,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigate,
   searchQuery,
   setSearchQuery,
+  onSelectPlace,
 }) => {
   const { user, logout } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -50,14 +53,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* View Switcher & Search (Consumer) */}
           {currentView === 'consumer' && (
-            <div className="relative w-full sm:w-72 my-1 sm:my-0">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#00f2ff]" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="La Tasca de Marea · Las Palmas"
-                className="w-full bg-slate-900/90 text-sky-100 placeholder-slate-400 text-xs rounded-lg pl-9 pr-4 py-1.5 border border-[#00f2ff]/40 focus:outline-none focus:border-[#00f2ff] focus:ring-1 focus:ring-[#00f2ff] font-sans-ui"
+            <div className="relative w-full sm:w-80 my-1 sm:my-0">
+              <SearchBar 
+                onSelectPlace={(id) => onSelectPlace?.(id)}
+                placeholder="Buscar en Google Places..."
               />
             </div>
           )}

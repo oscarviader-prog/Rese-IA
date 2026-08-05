@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { PastelCard } from './PastelCard';
 import { NewsItem, NewReview } from '../types';
 import { ReviewModal } from './ReviewModal';
-import ReservationModal from './ReservationModal';
+import { SearchBar } from './SearchBar';
+import { PlaceDetailModal } from './PlaceDetailModal';
 import {
   Sparkles,
   Search,
@@ -47,6 +48,7 @@ export interface Establishment {
 interface ConsumerViewProps {
   searchQuery?: string;
   setSearchQuery?: (q: string) => void;
+  onSelectPlace?: (placeId: string) => void;
 }
 
 const INITIAL_ESTABLISHMENTS: Establishment[] = [
@@ -206,9 +208,12 @@ const INITIAL_ESTABLISHMENTS: Establishment[] = [
   }
 ];
 
-export const ConsumerView: React.FC<ConsumerViewProps> = ({ searchQuery = '', setSearchQuery }) => {
+export const ConsumerView: React.FC<ConsumerViewProps> = ({ searchQuery = '', setSearchQuery, onSelectPlace }) => {
   const [establishments, setEstablishments] = useState<Establishment[]>(INITIAL_ESTABLISHMENTS);
   const [selectedEstId, setSelectedEstId] = useState<string>('tasca-marea');
+
+  // Google Places API selected place modal state
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
   // AI Prompt internal state synced with query
   const [aiPrompt, setAiPrompt] = useState(searchQuery);
@@ -327,47 +332,18 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({ searchQuery = '', se
         </div>
 
         <p className="text-xs font-sans-ui text-slate-700 mb-3">
-          Busca por nombre de plato (ej: <i>"pulpo"</i>, <i>"marisco"</i>), zona (<i>"Las Palmas"</i>, <i>"Vegueta"</i>) o palabras de reseña (<i>"espera"</i>, <i>"precio"</i>, <i>"ceviche"</i>).
+          Busca negocios reales en tiempo real mediante <strong>Google Places API</strong> o filtra por platos y especialidades de ReseñIA.
         </p>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleApplySearch(aiPrompt);
-          }}
-          className="flex flex-col sm:flex-row items-center gap-2 mb-3"
-        >
-          <div className="relative w-full">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-cyan-700" />
-            <input
-              type="text"
-              value={aiPrompt}
-              onChange={(e) => {
-                setAiPrompt(e.target.value);
-                if (setSearchQuery) setSearchQuery(e.target.value);
-              }}
-              placeholder="Ej: pulpo a la brasa, marisco, Vegueta, terraza..."
-              className="w-full bg-white text-slate-900 placeholder-slate-500 text-xs rounded-xl pl-9 pr-8 py-2.5 border border-sky-300 focus:outline-none focus:border-cyan-600 focus:ring-1 focus:ring-cyan-600 font-sans-ui"
-            />
-            {aiPrompt && (
-              <button
-                type="button"
-                onClick={() => handleApplySearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-0.5"
-                title="Limpiar búsqueda"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-          <button
-            type="submit"
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white text-xs font-mono-code font-bold transition-all shadow-md flex items-center justify-center gap-1.5 flex-shrink-0 cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            Buscar
-          </button>
-        </form>
+        <div className="mb-4">
+          <SearchBar 
+            onSelectPlace={(placeId) => {
+              setSelectedPlaceId(placeId);
+              if (onSelectPlace) onSelectPlace(placeId);
+            }}
+            placeholder="Buscar en Google Places (ej: Tasca de Marea, Marisquería, Las Palmas...)"
+          />
+        </div>
 
         {/* Quick Suggestion Chips */}
         <div className="flex flex-wrap items-center gap-1.5">
@@ -914,7 +890,12 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({ searchQuery = '', se
           onAddReview={handleAddReview}
         />
       )}
+
+      {/* Google Places Details Modal */}
+      <PlaceDetailModal
+        placeId={selectedPlaceId}
+        onClose={() => setSelectedPlaceId(null)}
+      />
     </div>
   );
 };
-<ReservationModal />

@@ -1,46 +1,10 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { UserProfile, UserRole } from '../types';
+import { createClient } from '@supabase/supabase-js';
+import { UserProfile } from '../types';
 
-const DEFAULT_SUPABASE_URL = 'https://bkmsfroizfkiidvmwiqv.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrbXNmcm9pemZraWlkdm13aXF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MzMzNDIsImV4cCI6MjEwMDMwOTM0Mn0.Tqq_mSz18fuS4uDkCUHYkm88PzR-pXsEuc_NnPn1leM';
+export const SUPABASE_URL = 'https://bkmsfroizfkiidvmwiqv.supabase.co';
+export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_k-JCnISmKPXwkKJgqkvc8A_h3ptBf7H';
 
-function cleanEnvValue(val?: string, defaultVal = ''): string {
-  if (!val) return defaultVal;
-  let s = val.trim();
-  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-    s = s.slice(1, -1).trim();
-  }
-  return s || defaultVal;
-}
-
-const env = (import.meta as unknown as { env: Record<string, string> }).env || {};
-let rawUrl = cleanEnvValue(env.VITE_SUPABASE_URL, DEFAULT_SUPABASE_URL);
-
-if (rawUrl.includes('VITE_')) {
-  rawUrl = rawUrl.split('VITE_')[0].trim();
-}
-rawUrl = rawUrl.replace(/\/+$/, '');
-
-try {
-  const u = new URL(rawUrl);
-  rawUrl = u.origin;
-} catch {
-  rawUrl = DEFAULT_SUPABASE_URL;
-}
-
-const supabaseUrl = rawUrl;
-const supabaseAnonKey = cleanEnvValue(env.VITE_SUPABASE_ANON_KEY, DEFAULT_SUPABASE_ANON_KEY);
-
-export const supabase: SupabaseClient | null = (supabaseUrl && supabaseAnonKey)
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-      }
-    })
-  : null;
-
+export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
 // LocalStorage key for mock persistence
 const MOCK_USERS_KEY = 'resenia_mock_users';
@@ -50,7 +14,6 @@ export function getMockUsers(): UserProfile[] {
   try {
     const data = localStorage.getItem(MOCK_USERS_KEY);
     if (!data) {
-      // Default demo accounts
       const defaultUsers: UserProfile[] = [
         {
           id: 'mock-1',
@@ -69,15 +32,6 @@ export function getMockUsers(): UserProfile[] {
           companyName: 'La Tasca de Marea',
           authorizedRep: true,
           emailVerified: true,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: 'mock-3',
-          email: 'sinverificar@ejemplo.com',
-          role: 'consumer',
-          firstName: 'Usuario',
-          lastName: 'Pendiente',
-          emailVerified: false,
           createdAt: new Date().toISOString(),
         }
       ];
