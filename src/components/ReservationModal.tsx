@@ -2,6 +2,7 @@ import { createReservation } from "../lib/reservations";
 import React from "react";
 
 export default function ReservationModal() {
+  const [businessName, setBusinessName] = React.useState("");
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
@@ -28,12 +29,13 @@ export default function ReservationModal() {
     <div className="p-6 bg-white rounded-xl shadow-lg">
       <h2 className="text-xl font-bold mb-4">Nueva reserva</h2>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="text"
-          placeholder="Nombre del establecimiento"
-          className="w-full border rounded-lg p-2"
-        />
+<input
+  type="text"
+  placeholder="Nombre del establecimiento"
+  className="w-full border rounded-lg p-2"
+  value={businessName}
+  onChange={(e) => setBusinessName(e.target.value)}
+/>
 
         <input
           type="date"
