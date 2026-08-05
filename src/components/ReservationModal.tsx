@@ -11,14 +11,14 @@ export default function ReservationModal() {
   e.preventDefault();
 
   try {
-    await createReservation({
-      id: crypto.randomUUID(),
-      user_id: "",
-      business_name: "",
-      reservation_date: "",
-      reservation_time: "",
-      people: 1,
-      notes: "",
+await createReservation({
+  id: crypto.randomUUID(),
+  user_id: "",
+  business_name: businessName,
+  reservation_date: reservationDate,
+  reservation_time: reservationTime,
+  people: people,
+  notes: notes,
       status: "confirmed",
       created_at: new Date().toISOString(),
     });
