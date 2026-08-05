@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '../lib/supabase';
-import { Search, Star, MapPin, Loader2, Building2, X, Navigation } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { Search, Star, MapPin, Loader2, Building2, X, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export interface PlaceResult {
   id: string;
@@ -57,60 +58,16 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   placeholder = 'Buscar en Google Places...',
   className = '',
 }) => {
+  const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<PlaceResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [userCity, setUserCity] = useState<string | null>(null);
-  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Profile location (defaults to Madrid if no city is set in user profile)
+  const profileCity = user?.city?.trim() || 'Madrid';
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
-
-  // Detect user location on mount
-  useEffect(() => {
-    const fetchIpLocation = async () => {
-      try {
-        const res = await fetch('https://ipapi.co/json/');
-        const data = await res.json();
-        if (data && data.city) {
-          setUserCity(data.city);
-        } else {
-          setUserCity('Madrid');
-        }
-      } catch {
-        setUserCity('Madrid');
-      }
-    };
-
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setUserCoords({ lat, lng });
-
-          try {
-            const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=es`);
-            const data = await res.json();
-            const city = data.city || data.locality || data.principalSubdivision;
-            if (city) {
-              setUserCity(city);
-            } else {
-              fetchIpLocation();
-            }
-          } catch {
-            fetchIpLocation();
-          }
-        },
-        () => {
-          fetchIpLocation();
-        },
-        { timeout: 5000 }
-      );
-    } else {
-      fetchIpLocation();
-    }
-  }, []);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -136,21 +93,16 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     const isCustomLocation = queryHasLocation(searchQuery);
     let finalSearchQuery = searchQuery;
 
-    if (!isCustomLocation && userCity) {
-      finalSearchQuery = `${searchQuery} ${userCity}`;
+    // Append profile location ONLY if no location was specified in the search bar
+    if (!isCustomLocation && profileCity) {
+      finalSearchQuery = `${searchQuery} ${profileCity}`;
     }
 
-    console.log('Query original:', searchQuery, '| Ubicación aplicada:', isCustomLocation ? 'Especificada en texto' : userCity, '| Query enviada:', finalSearchQuery);
+    console.log('Query original:', searchQuery, '| Ubicación perfil:', isCustomLocation ? 'Especificada en texto' : profileCity, '| Query enviada:', finalSearchQuery);
 
     try {
-      const payload: { query: string; latitude?: number; longitude?: number } = { query: finalSearchQuery };
-      if (userCoords && !isCustomLocation) {
-        payload.latitude = userCoords.lat;
-        payload.longitude = userCoords.lng;
-      }
-
       const { data, error } = await supabase.functions.invoke('search-places', {
-        body: payload,
+        body: { query: finalSearchQuery },
       });
 
       if (error) {
@@ -215,7 +167,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           onFocus={() => {
             if (query.trim().length >= 2) setIsOpen(true);
           }}
-          placeholder={userCity ? `${placeholder} (Ubicación: ${userCity})` : placeholder}
+          placeholder={profileCity ? `${placeholder} (Ubicación perfil: ${profileCity})` : placeholder}
           className="w-full bg-slate-900/90 text-white placeholder-slate-400 text-sm rounded-xl pl-10 pr-10 py-3 border border-cyan-500/40 focus:border-[#00f2ff] focus:ring-1 focus:ring-[#00f2ff] focus:outline-none transition-all shadow-[0_0_15px_rgba(0,242,255,0.08)]"
         />
 
@@ -244,10 +196,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 <div className="flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-[#00f2ff]" />
                   <span>RESULTADOS DE GOOGLE PLACES</span>
-                  {userCity && (
+                  {profileCity && (
                     <span className="hidden md:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-slate-800 text-cyan-200 border border-slate-700 normal-case font-normal">
-                      <Navigation className="w-3 h-3 text-cyan-400" />
-                      {hasExplicitLoc ? 'Ubicación en búsqueda' : `Ubicación: ${userCity}`}
+                      <User className="w-3 h-3 text-cyan-400" />
+                      {hasExplicitLoc ? 'Ubicación en búsqueda' : `Perfil: ${profileCity}`}
                     </span>
                   )}
                 </div>
@@ -330,8 +282,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 Sin resultados para "{query}".
               </p>
               <p className="text-xs text-slate-500">
-                {userCity && !hasExplicitLoc
-                  ? `Se buscó automáticamente en ${userCity}. Puedes añadir otra ciudad a la búsqueda (ej: "${query} Tenerife").`
+                {profileCity && !hasExplicitLoc
+                  ? `Se buscó con tu ciudad de perfil (${profileCity}). Puedes especificar otra ubicación en tu búsqueda (ej: "${query} Tenerife").`
                   : 'Prueba a escribir el nombre del local o tipo de negocio.'}
               </p>
             </div>

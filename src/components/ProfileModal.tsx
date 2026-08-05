@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
   X, 
@@ -44,6 +44,18 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (user && isOpen) {
+      setFirstName(user.firstName || '');
+      setLastName(user.lastName || '');
+      setCompanyName(user.companyName || '');
+      setPhone(user.phone || '');
+      setCity(user.city || '');
+      setBio(user.bio || '');
+      setAvatarUrl(user.avatarUrl || '');
+    }
+  }, [user, isOpen]);
 
   if (!isOpen || !user) return null;
 

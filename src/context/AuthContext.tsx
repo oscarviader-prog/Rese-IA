@@ -34,19 +34,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             const userMetaData = session.user.user_metadata || {};
+            const localStored = getCurrentStoredUser();
+            const mockUsers = getMockUsers();
+            const mockFound = mockUsers.find(u => u.email.toLowerCase() === (session.user.email || '').toLowerCase());
+
             const profile: UserProfile = {
               id: session.user.id,
               email: session.user.email || '',
-              role: (userMetaData.role as UserRole) || 'consumer',
-              firstName: userMetaData.first_name || '',
-              lastName: userMetaData.last_name || '',
-              companyName: userMetaData.company_name || '',
-              authorizedRep: userMetaData.authorized_rep || false,
+              role: (userMetaData.role as UserRole) || localStored?.role || mockFound?.role || 'consumer',
+              firstName: userMetaData.first_name ?? localStored?.firstName ?? mockFound?.firstName ?? '',
+              lastName: userMetaData.last_name ?? localStored?.lastName ?? mockFound?.lastName ?? '',
+              companyName: userMetaData.company_name ?? localStored?.companyName ?? mockFound?.companyName ?? '',
+              authorizedRep: userMetaData.authorized_rep ?? localStored?.authorizedRep ?? mockFound?.authorizedRep ?? false,
+              phone: userMetaData.phone ?? localStored?.phone ?? mockFound?.phone ?? '',
+              city: userMetaData.city ?? localStored?.city ?? mockFound?.city ?? '',
+              bio: userMetaData.bio ?? localStored?.bio ?? mockFound?.bio ?? '',
+              avatarUrl: userMetaData.avatar_url ?? localStored?.avatarUrl ?? mockFound?.avatarUrl ?? '',
               emailVerified: session.user.email_confirmed_at != null,
               createdAt: session.user.created_at,
+              password: localStored?.password || mockFound?.password,
             };
             setUser(profile);
             setCurrentStoredUser(profile);
+            saveMockUser(profile);
           } else {
             setUser(getCurrentStoredUser());
           }
@@ -58,19 +68,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
           if (session?.user) {
             const userMetaData = session.user.user_metadata || {};
+            const localStored = getCurrentStoredUser();
+            const mockUsers = getMockUsers();
+            const mockFound = mockUsers.find(u => u.email.toLowerCase() === (session.user.email || '').toLowerCase());
+
             const profile: UserProfile = {
               id: session.user.id,
               email: session.user.email || '',
-              role: (userMetaData.role as UserRole) || 'consumer',
-              firstName: userMetaData.first_name || '',
-              lastName: userMetaData.last_name || '',
-              companyName: userMetaData.company_name || '',
-              authorizedRep: userMetaData.authorized_rep || false,
+              role: (userMetaData.role as UserRole) || localStored?.role || mockFound?.role || 'consumer',
+              firstName: userMetaData.first_name ?? localStored?.firstName ?? mockFound?.firstName ?? '',
+              lastName: userMetaData.last_name ?? localStored?.lastName ?? mockFound?.lastName ?? '',
+              companyName: userMetaData.company_name ?? localStored?.companyName ?? mockFound?.companyName ?? '',
+              authorizedRep: userMetaData.authorized_rep ?? localStored?.authorizedRep ?? mockFound?.authorizedRep ?? false,
+              phone: userMetaData.phone ?? localStored?.phone ?? mockFound?.phone ?? '',
+              city: userMetaData.city ?? localStored?.city ?? mockFound?.city ?? '',
+              bio: userMetaData.bio ?? localStored?.bio ?? mockFound?.bio ?? '',
+              avatarUrl: userMetaData.avatar_url ?? localStored?.avatarUrl ?? mockFound?.avatarUrl ?? '',
               emailVerified: session.user.email_confirmed_at != null,
               createdAt: session.user.created_at,
+              password: localStored?.password || mockFound?.password,
             };
             setUser(profile);
             setCurrentStoredUser(profile);
+            saveMockUser(profile);
           }
         });
 
