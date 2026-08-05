@@ -2,11 +2,33 @@ import { createReservation } from "../lib/reservations";
 import React from "react";
 
 export default function ReservationModal() {
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  try {
+    await createReservation({
+      id: crypto.randomUUID(),
+      user_id: "",
+      business_name: "",
+      reservation_date: "",
+      reservation_time: "",
+      people: 1,
+      notes: "",
+      status: "confirmed",
+      created_at: new Date().toISOString(),
+    });
+
+    alert("Reserva creada");
+  } catch (error) {
+    console.error(error);
+    alert("Error al crear la reserva");
+  }
+};
   return (
     <div className="p-6 bg-white rounded-xl shadow-lg">
       <h2 className="text-xl font-bold mb-4">Nueva reserva</h2>
 
-      <form className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="text"
           placeholder="Nombre del establecimiento"
