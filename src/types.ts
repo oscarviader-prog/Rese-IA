@@ -52,3 +52,16 @@ export interface NewReview {
   date: string;
 }
 
+export interface UserBooking {
+  id: string;
+  userEmail: string;
+  userName?: string;
+  placeName: string;
+  placeAddress: string;
+  guests: string;
+  date: string;
+  time: string;
+  status: 'confirmada' | 'cancelada';
+  createdAt: string;
+}
+
