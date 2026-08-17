@@ -11,6 +11,8 @@ import { ForgotPasswordPage } from './components/ForgotPasswordPage';
 import { PlaceDetailModal } from './components/PlaceDetailModal';
 import { Footer } from './components/Footer';
 import { AuthProvider } from './context/AuthContext';
+import { BusinessRegistrationForm } from './components/BusinessRegistrationForm';
+import { BusinessDashboard } from './components/BusinessDashboard';
 import { PlaceResult } from './components/SearchBar';
 
 function MainApp() {
@@ -78,6 +80,24 @@ function MainApp() {
           {currentView === 'forgot_password' && (
             <ForgotPasswordPage onNavigate={handleNavigate} />
           )}
+          
+          {currentView === 'business_register' && (
+            <BusinessRegistrationForm
+              onSuccess={(businessId) => {
+                console.log('Negocio creado con ID:', businessId);
+                setCurrentView('business_dashboard' as ViewState);
+              }}
+            />
+          )}
+
+          {currentView === 'business_dashboard' && (
+            <BusinessDashboard
+              onBackToRegister={() => {
+                setCurrentView('business_register' as ViewState);
+              }}
+            />
+          )}
+
         </main>
 
         <Footer />

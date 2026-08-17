@@ -232,6 +232,8 @@ Específico, con alcance limitado, con manejo de errores explícito.
 - Maquetas de Nota Real en `ConsumerView.tsx` con datos inventados. Eliminar cuando exista `analyze-reviews`.
 - Sin tests automatizados. Testing manual como única red de seguridad.
 - Sin CI/CD. Antes de producción, configurar GitHub Actions con `bun run lint`.
+- `BusinessDashboard.tsx` usa `.maybeSingle()` en la query a `businesses`. Si un usuario tiene más de 1 negocio asociado, la query falla silenciosamente y muestra "sin negocio registrado". Solución: cambiar a `.limit(1).maybeSingle()` o replantear el flujo si un usuario debe poder tener varios negocios (decisión de producto pendiente).
+- `AuthContext.tsx` tiene lógica mixta con mock users en localStorage como fallback cuando Supabase Auth falla. Puede provocar que `auth.uid()` sea null aunque el usuario "parezca" logueado. Todo lo que dependa de RLS necesita sesión real de Supabase, no mock. Auditar el flujo cuando se acerque el lanzamiento.
 
 ---
 
