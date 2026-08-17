@@ -59,6 +59,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
   const [details, setDetails] = useState<GooglePlaceDetails | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<'verified' | 'partially_verified' | null>(null);
 
   // Custom user reviews added locally
   const [localReviews, setLocalReviews] = useState<NewReview[]>([]);
@@ -109,6 +110,43 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
     };
 
     fetchDetails();
+  }, [placeId]);
+
+  useEffect(() => {
+    if (!placeId) {
+      setVerificationStatus(null);
+      return;
+    }
+
+    const checkVerification = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('businesses')
+          .select('verification_status')
+          .eq('google_place_id', placeId)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error consultando estado de verificación:', error);
+          setVerificationStatus(null);
+          return;
+        }
+
+        if (
+          data?.verification_status === 'verified' ||
+          data?.verification_status === 'partially_verified'
+        ) {
+          setVerificationStatus(data.verification_status);
+        } else {
+          setVerificationStatus(null);
+        }
+      } catch (err) {
+        console.error('Error consultando estado de verificación:', err);
+        setVerificationStatus(null);
+      }
+    };
+
+    checkVerification();
   }, [placeId]);
 
   if (!placeId) return null;
@@ -180,6 +218,18 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
                   <div className="space-y-1.5 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-xl font-extrabold text-white">{name}</h3>
+                      {verificationStatus === 'verified' && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-100 text-emerald-800">
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          Verificada por ReseñIA
+                        </span>
+                      )}
+                      {verificationStatus === 'partially_verified' && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-amber-100 text-amber-800">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          Verificación parcial
+                        </span>
+                      )}
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono-code font-bold uppercase bg-cyan-950 text-cyan-300 border border-cyan-500/40">
                         {category}
                       </span>

@@ -234,7 +234,8 @@ Específico, con alcance limitado, con manejo de errores explícito.
 - Sin CI/CD. Antes de producción, configurar GitHub Actions con `bun run lint`.
 - `BusinessDashboard.tsx` usa `.maybeSingle()` en la query a `businesses`. Si un usuario tiene más de 1 negocio asociado, la query falla silenciosamente y muestra "sin negocio registrado". Solución: cambiar a `.limit(1).maybeSingle()` o replantear el flujo si un usuario debe poder tener varios negocios (decisión de producto pendiente).
 - `AuthContext.tsx` tiene lógica mixta con mock users en localStorage como fallback cuando Supabase Auth falla. Puede provocar que `auth.uid()` sea null aunque el usuario "parezca" logueado. Todo lo que dependa de RLS necesita sesión real de Supabase, no mock. Auditar el flujo cuando se acerque el lanzamiento.
-
+- **[CRÍTICO]** Edge Function `get-place-details` falla con error CORS al invocarse desde `localhost:3000`. El modal `PlaceDetailModal.tsx` muestra placeholders ("Establecimiento Seleccionado", "0 opiniones") en lugar de los datos reales de Google Places. Es bloqueante para el consumidor. Arreglar tras cerrar Fase 6 de verificación de empresas.
+- El badge de verificación en `PlaceDetailModal.tsx` funciona correctamente y consulta la tabla `businesses` filtrando por `google_place_id`. Depende de que la Edge Function `get-place-details` funcione para que el modal muestre datos reales del negocio junto al badge.
 ---
 
 ## 14. Nota final
