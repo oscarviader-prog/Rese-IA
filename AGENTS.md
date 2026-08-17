@@ -232,7 +232,12 @@ Específico, con alcance limitado, con manejo de errores explícito.
 - Maquetas de Nota Real en `ConsumerView.tsx` con datos inventados. Eliminar cuando exista `analyze-reviews`.
 - Sin tests automatizados. Testing manual como única red de seguridad.
 - Sin CI/CD. Antes de producción, configurar GitHub Actions con `bun run lint`.
-
+- `AuthContext.tsx` tiene lógica mixta con mock users en localStorage como fallback cuando Supabase Auth falla. Puede provocar que `auth.uid()` sea null aunque el usuario "parezca" logueado. Todo lo que dependa de RLS necesita sesión real de Supabase, no mock. Auditar el flujo cuando se acerque el lanzamiento.
+- Componente `BusinessView.tsx` queda huérfano tras la integración del flujo real de verificación. Contiene maqueta con datos hardcodeados (La Tasca de Marea, leads inventados, agente de respuesta con texto fijo, informes de actividad falsos). Sirve como referencia visual para futuras funciones reales (agente de respuesta con IA, informes, gestión de leads). Decisión pendiente: mantenerlo como referencia o eliminarlo cuando construyamos las funciones reales.
+- El componente `BusinessDashboard.tsx` sigue usando `.maybeSingle()` internamente. Actualmente no es problema porque `App.tsx` decide antes qué dashboard mostrar y solo hay 1 negocio por usuario. Si algún día se permite que un usuario tenga varios negocios, hay que revisar tanto App.tsx como BusinessDashboard.
+- **[CRÍTICO]** Edge Function `get-place-details` falla con error CORS al invocarse desde `localhost:3000`. El modal `PlaceDetailModal.tsx` muestra placeholders ("Establecimiento Seleccionado", "0 opiniones") en lugar de los datos reales de Google Places. Es bloqueante para el consumidor. Arreglar tras cerrar Fase 6 de verificación de empresas.
+- El badge de verificación en `PlaceDetailModal.tsx` funciona correctamente y consulta la tabla `businesses` filtrando por `google_place_id`. Depende de que la Edge Function `get-place-details` funcione para que el modal muestre datos reales del negocio junto al badge.
+- **Decisión de producto pendiente:** un usuario puede tener 1 solo negocio asociado actualmente. En el futuro, permitir varios negocios por usuario con un selector tipo Instagram (cambiar entre dashboards de distintos negocios sin cerrar sesión). Cuando se implemente: revisar `App.tsx` (query en `useEffect`), `BusinessDashboard.tsx` (query interna con `.maybeSingle()`), y añadir un selector en el Navbar o en el propio dashboard.
 ---
 
 ## 14. Nota final
