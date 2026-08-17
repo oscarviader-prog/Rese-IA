@@ -237,6 +237,7 @@ Específico, con alcance limitado, con manejo de errores explícito.
 - El componente `BusinessDashboard.tsx` sigue usando `.maybeSingle()` internamente. Actualmente no es problema porque `App.tsx` decide antes qué dashboard mostrar y solo hay 1 negocio por usuario. Si algún día se permite que un usuario tenga varios negocios, hay que revisar tanto App.tsx como BusinessDashboard.
 - **[CRÍTICO]** Edge Function `get-place-details` falla con error CORS al invocarse desde `localhost:3000`. El modal `PlaceDetailModal.tsx` muestra placeholders ("Establecimiento Seleccionado", "0 opiniones") en lugar de los datos reales de Google Places. Es bloqueante para el consumidor. Arreglar tras cerrar Fase 6 de verificación de empresas.
 - El badge de verificación en `PlaceDetailModal.tsx` funciona correctamente y consulta la tabla `businesses` filtrando por `google_place_id`. Depende de que la Edge Function `get-place-details` funcione para que el modal muestre datos reales del negocio junto al badge.
+- **Decisión de producto pendiente:** un usuario puede tener 1 solo negocio asociado actualmente. En el futuro, permitir varios negocios por usuario con un selector tipo Instagram (cambiar entre dashboards de distintos negocios sin cerrar sesión). Cuando se implemente: revisar `App.tsx` (query en `useEffect`), `BusinessDashboard.tsx` (query interna con `.maybeSingle()`), y añadir un selector en el Navbar o en el propio dashboard.
 ---
 
 ## 14. Nota final
