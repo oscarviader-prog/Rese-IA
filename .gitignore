@@ -9,3 +9,6 @@ coverage/
 
 # Archivos de backup temporales
 *.backup.*
+
+# Mirror local de AGENTS.md generado por el entorno IDE — AGENTS.md es la fuente de verdad
+CLAUDE.md
