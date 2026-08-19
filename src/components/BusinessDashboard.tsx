@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle, AlertCircle, XCircle, Loader2, RefreshCw } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, Loader2, RefreshCw, Pencil, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,9 +26,16 @@ interface BusinessDashboardData {
   verification_status: 'pending_verification' | 'verified' | 'partially_verified' | 'rejected';
   verification_data?: { google_places?: GooglePlacesData } | null;
   verified_at?: string | null;
+  codigo_postal?: string;
+  provincia?: string;
+  pais?: string;
+  email_facturacion?: string | null;
 }
 
-const BusinessDataList: React.FC<{ business: BusinessDashboardData }> = ({ business }) => {
+const BusinessDataList: React.FC<{
+  business: BusinessDashboardData;
+  onUpdated: (updates: Partial<BusinessDashboardData>) => void;
+}> = ({ business, onUpdated }) => {
   const fechaVerificacion = business.verified_at
     ? new Date(business.verified_at).toLocaleDateString('es-ES')
     : '—';
@@ -36,44 +43,194 @@ const BusinessDataList: React.FC<{ business: BusinessDashboardData }> = ({ busin
   const googlePlaces = business.verification_data?.google_places;
   const googlePlacesConfirmados = !!(googlePlaces && googlePlaces.nombre_encontrado);
 
+  const canEdit =
+    business.verification_status === 'verified' ||
+    business.verification_status === 'partially_verified';
+
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [nombreComercial, setNombreComercial] = useState(business.nombre_comercial ?? '');
+  const [emailFacturacion, setEmailFacturacion] = useState(business.email_facturacion ?? '');
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSuccess, setEditSuccess] = useState(false);
+
+  const openEditModal = () => {
+    setNombreComercial(business.nombre_comercial ?? '');
+    setEmailFacturacion(business.email_facturacion ?? '');
+    setEditError(null);
+    setEditSuccess(false);
+    setIsEditOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingEdit(true);
+    setEditError(null);
+
+    const updates = {
+      nombre_comercial: nombreComercial.trim() || null,
+      email_facturacion: emailFacturacion.trim() || null,
+    };
+
+    const { error } = await supabase.from('businesses').update(updates).eq('id', business.id);
+
+    setSavingEdit(false);
+
+    if (error) {
+      setEditError('No se pudieron guardar los cambios. Vuelve a intentarlo.');
+      return;
+    }
+
+    setIsEditOpen(false);
+    onUpdated(updates);
+    setEditSuccess(true);
+  };
+
   const items = [
     { label: 'Razón social', value: business.razon_social },
     { label: 'CIF/NIF', value: business.cif },
     { label: 'Domicilio fiscal', value: business.domicilio_fiscal },
     { label: 'Ciudad', value: business.ciudad },
+    { label: 'Código postal', value: business.codigo_postal || '—' },
+    { label: 'Provincia', value: business.provincia || '—' },
+    { label: 'País', value: business.pais || '—' },
+    ...(business.email_facturacion
+      ? [{ label: 'Email de facturación', value: business.email_facturacion }]
+      : []),
     { label: 'Fecha de verificación', value: fechaVerificacion },
   ];
 
   return (
-    <div className="mt-6 rounded-2xl bg-white p-6 shadow-md">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Datos de tu negocio</h3>
-      <dl className="space-y-3">
-        {items.map((item) => (
-          <div key={item.label} className="flex flex-col sm:flex-row sm:gap-4">
-            <dt className="text-sm font-medium text-gray-500 sm:w-44 sm:shrink-0">{item.label}</dt>
-            <dd className="text-sm text-gray-900">{item.value}</dd>
-          </div>
-        ))}
-      </dl>
+    <>
+      <div className="mt-6 rounded-2xl bg-white p-6 shadow-md">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Datos de tu negocio</h3>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={openEditModal}
+              className="inline-flex items-center gap-1.5 text-sm text-teal-700 hover:text-teal-800 font-medium border border-teal-200 hover:border-teal-300 rounded-lg px-3 py-1.5 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Editar datos editables
+            </button>
+          )}
+        </div>
 
-      {googlePlacesConfirmados && (
-        <div className="mt-5 rounded-xl bg-teal-50 border border-teal-100 p-4">
-          <p className="text-sm font-semibold text-teal-800 mb-2">
-            Datos confirmados en Google Places:
-          </p>
-          <dl className="space-y-2">
-            <div className="flex flex-col sm:flex-row sm:gap-4">
-              <dt className="text-sm font-medium text-teal-700 sm:w-44 sm:shrink-0">Nombre encontrado</dt>
-              <dd className="text-sm text-gray-900">{googlePlaces?.nombre_encontrado}</dd>
+        <dl className="space-y-3">
+          {items.map((item) => (
+            <div key={item.label} className="flex flex-col sm:flex-row sm:gap-4">
+              <dt className="text-sm font-medium text-gray-500 sm:w-44 sm:shrink-0">{item.label}</dt>
+              <dd className="text-sm text-gray-900">{item.value}</dd>
             </div>
-            <div className="flex flex-col sm:flex-row sm:gap-4">
-              <dt className="text-sm font-medium text-teal-700 sm:w-44 sm:shrink-0">Dirección</dt>
-              <dd className="text-sm text-gray-900">{googlePlaces?.direccion ?? '—'}</dd>
+          ))}
+        </dl>
+
+        {googlePlacesConfirmados && (
+          <div className="mt-5 rounded-xl bg-teal-50 border border-teal-100 p-4">
+            <p className="text-sm font-semibold text-teal-800 mb-2">
+              Datos confirmados en Google Places:
+            </p>
+            <dl className="space-y-2">
+              <div className="flex flex-col sm:flex-row sm:gap-4">
+                <dt className="text-sm font-medium text-teal-700 sm:w-44 sm:shrink-0">Nombre encontrado</dt>
+                <dd className="text-sm text-gray-900">{googlePlaces?.nombre_encontrado}</dd>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:gap-4">
+                <dt className="text-sm font-medium text-teal-700 sm:w-44 sm:shrink-0">Dirección</dt>
+                <dd className="text-sm text-gray-900">{googlePlaces?.direccion ?? '—'}</dd>
+              </div>
+            </dl>
+          </div>
+        )}
+
+        {editSuccess && (
+          <div className="mt-5 flex items-center gap-2 bg-green-50 text-green-800 border border-green-200 rounded-lg p-3 text-sm">
+            <CheckCircle className="w-4 h-4 shrink-0" />
+            Cambios guardados correctamente.
+          </div>
+        )}
+      </div>
+
+      {isEditOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold text-gray-900">Editar datos editables</h4>
+              <button
+                type="button"
+                onClick={() => setIsEditOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-          </dl>
+
+            <p className="text-xs text-gray-500 mb-5">
+              Los datos verificados no se pueden modificar. Contacta soporte si hay un cambio importante.
+            </p>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="editNombreComercial"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Nombre comercial
+                </label>
+                <input
+                  id="editNombreComercial"
+                  type="text"
+                  value={nombreComercial}
+                  onChange={(e) => setNombreComercial(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="editEmailFacturacion"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Email de facturación
+                </label>
+                <input
+                  id="editEmailFacturacion"
+                  type="email"
+                  value={emailFacturacion}
+                  onChange={(e) => setEmailFacturacion(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+                />
+              </div>
+
+              {editError && (
+                <div className="bg-red-50 text-red-800 border border-red-200 rounded-lg p-3 text-sm">
+                  {editError}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditOpen(false)}
+                  className="flex-1 border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-2.5 px-4 rounded-lg transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="flex-1 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  {savingEdit && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Guardar cambios
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
@@ -110,6 +267,10 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
       fetchBusiness();
     }
   }, [user, fetchBusiness]);
+
+  const handleBusinessUpdated = (updates: Partial<BusinessDashboardData>) => {
+    setBusiness((prev) => (prev ? { ...prev, ...updates } : prev));
+  };
 
   if (authLoading || (user && isLoading)) {
     return (
@@ -199,7 +360,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
               </div>
             </div>
           </div>
-          <BusinessDataList business={business} />
+          <BusinessDataList business={business} onUpdated={handleBusinessUpdated} />
           <UpcomingSection />
         </div>
       </div>
@@ -222,7 +383,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
               </div>
             </div>
           </div>
-          <BusinessDataList business={business} />
+          <BusinessDataList business={business} onUpdated={handleBusinessUpdated} />
           <UpcomingSection />
         </div>
       </div>

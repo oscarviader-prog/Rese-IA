@@ -11,6 +11,8 @@ interface BusinessRegistrationFormProps {
 
 const CIF_REGEX_EMPRESA = /^[ABCDEFGHJKLMNPQRSUVW]\d{7}[0-9A-J]$/;
 const CIF_REGEX_AUTONOMO = /^\d{8}[A-Z]$/;
+const CODIGO_POSTAL_REGEX = /^\d{5}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const BusinessRegistrationForm: React.FC<BusinessRegistrationFormProps> = ({
   onSuccess,
@@ -23,6 +25,10 @@ export const BusinessRegistrationForm: React.FC<BusinessRegistrationFormProps> =
   const [nombreComercial, setNombreComercial] = useState('');
   const [domicilioFiscal, setDomicilioFiscal] = useState('');
   const [ciudad, setCiudad] = useState('');
+  const [codigoPostal, setCodigoPostal] = useState('');
+  const [provincia, setProvincia] = useState('');
+  const [pais, setPais] = useState('España');
+  const [emailFacturacion, setEmailFacturacion] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [spinnerMessage, setSpinnerMessage] = useState('Registrando tu negocio...');
@@ -32,11 +38,19 @@ export const BusinessRegistrationForm: React.FC<BusinessRegistrationFormProps> =
   const cifRegex = tipoEntidad === 'Empresa' ? CIF_REGEX_EMPRESA : CIF_REGEX_AUTONOMO;
   const cifFormatValido = cifNormalizado.length > 0 && cifRegex.test(cifNormalizado);
 
+  const codigoPostalValido = CODIGO_POSTAL_REGEX.test(codigoPostal.trim());
+  const emailFacturacionValido =
+    emailFacturacion.trim().length === 0 || EMAIL_REGEX.test(emailFacturacion.trim());
+
   const isFormValid =
     cifFormatValido &&
     razonSocial.trim().length >= 3 &&
     domicilioFiscal.trim().length > 0 &&
-    ciudad.trim().length > 0;
+    ciudad.trim().length > 0 &&
+    codigoPostalValido &&
+    provincia.trim().length > 0 &&
+    pais.trim().length > 0 &&
+    emailFacturacionValido;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +75,10 @@ export const BusinessRegistrationForm: React.FC<BusinessRegistrationFormProps> =
         nombre_comercial: nombreComercial.trim() || null,
         domicilio_fiscal: domicilioFiscal.trim(),
         ciudad: ciudad.trim(),
+        codigo_postal: codigoPostal.trim(),
+        provincia: provincia.trim(),
+        pais: pais.trim(),
+        email_facturacion: emailFacturacion.trim() || null,
         tipo_entidad: tipoEntidad === 'Empresa' ? 'empresa' : 'autonomo',
       })
       .select('id')
@@ -217,6 +235,67 @@ export const BusinessRegistrationForm: React.FC<BusinessRegistrationFormProps> =
               onChange={(e) => setCiudad(e.target.value)}
               placeholder="Ciudad donde opera tu negocio"
               required
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="codigoPostal" className="block text-sm font-medium text-gray-700 mb-2">
+              Código postal
+            </label>
+            <input
+              id="codigoPostal"
+              type="text"
+              value={codigoPostal}
+              onChange={(e) => setCodigoPostal(e.target.value)}
+              placeholder="Ej: 28001"
+              required
+              pattern="\d{5}"
+              maxLength={5}
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="provincia" className="block text-sm font-medium text-gray-700 mb-2">
+              Provincia
+            </label>
+            <input
+              id="provincia"
+              type="text"
+              value={provincia}
+              onChange={(e) => setProvincia(e.target.value)}
+              placeholder="Provincia donde opera tu negocio"
+              required
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="pais" className="block text-sm font-medium text-gray-700 mb-2">
+              País
+            </label>
+            <input
+              id="pais"
+              type="text"
+              value={pais}
+              onChange={(e) => setPais(e.target.value)}
+              placeholder="País donde opera tu negocio"
+              required
+              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="emailFacturacion" className="block text-sm font-medium text-gray-700 mb-2">
+              Email de facturación
+            </label>
+            <input
+              id="emailFacturacion"
+              type="email"
+              value={emailFacturacion}
+              onChange={(e) => setEmailFacturacion(e.target.value)}
+              placeholder="facturacion@tuempresa.com"
               className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
             />
           </div>

@@ -29,6 +29,9 @@
 - Sistema de reservas por email (mantiene el compañero).
 - Vista diferenciada consumidor/empresa.
 - Sistema de verificación de empresas con 2 capas: validación matemática CIF/NIF + Google Places (Edge Function `verify-business`).
+- Datos fiscales ampliados (4 campos nuevos): código postal, provincia, país, email de facturación.
+- Edición limitada de datos editables (nombre comercial + email de facturación) desde el dashboard.
+- Anti-fraude: datos verificados (CIF, razón social, domicilio) no editables desde la UI.
 
 ### En desarrollo
 - Frontend de registro empresarial (`BusinessRegistrationForm.tsx`).
@@ -239,6 +242,7 @@ Específico, con alcance limitado, con manejo de errores explícito.
 - El badge de verificación en `PlaceDetailModal.tsx` funciona correctamente y consulta la tabla `businesses` filtrando por `google_place_id`. Depende de que la Edge Function `get-place-details` funcione para que el modal muestre datos reales del negocio junto al badge.
 - **Decisión de producto pendiente:** un usuario puede tener 1 solo negocio asociado actualmente. En el futuro, permitir varios negocios por usuario con un selector tipo Instagram (cambiar entre dashboards de distintos negocios sin cerrar sesión). Cuando se implemente: revisar `App.tsx` (query en `useEffect`), `BusinessDashboard.tsx` (query interna con `.maybeSingle()`), y añadir un selector en el Navbar o en el propio dashboard.
 - **[DEUDA TÉCNICA]** La Edge Function que consulta detalles de Google Places está desplegada en Supabase con nombre `smooth-api` (autogenerado, sin revertir al crear). El frontend la invoca ahora como `smooth-api` para desbloquear el frente bloqueante. Pendiente: descargar el código con `supabase functions download smooth-api`, versionarlo en `supabase/functions/get-place-details/`, redesplegar con nombre correcto, actualizar frontend a `get-place-details`, borrar `smooth-api`. Hacer cuando no haya presión de otros frentes.
+- **[DEUDA TÉCNICA MENOR]** El BusinessDashboard muestra brevemente el estado "sin negocio" al hacer logout desde el propio dashboard, antes de la redirección. Es cosmético (fracción de segundo) y no bloqueante. Solución posible: añadir `if (!user) return null;` al inicio del componente para evitar el flash.
 ---
 
 ## 14. Nota final
