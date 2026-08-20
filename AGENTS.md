@@ -17,6 +17,7 @@
 - **Animaciones:** motion
 - **Entorno de desarrollo:** WSL Debian sobre Windows + VS Code + opencode
 - **Repositorio:** GitHub privado
+- **Librería de gráficos:** `recharts` (para visualizaciones en el dashboard de empresa).
 
 ---
 
@@ -32,6 +33,8 @@
 - Datos fiscales ampliados (4 campos nuevos): código postal, provincia, país, email de facturación.
 - Edición limitada de datos editables (nombre comercial + email de facturación) desde el dashboard.
 - Anti-fraude: datos verificados (CIF, razón social, domicilio) no editables desde la UI.
+- Sistema de snapshots periódicos del rating de Google Places para negocios verificados (tabla `business_snapshots`, Edge Function `snapshot-business`, cron job semanal lunes 3am).
+- Dashboard visual de evolución de rating en el panel de empresa (`BusinessMetricsDashboard.tsx` con recharts).
 
 ### En desarrollo
 - Frontend de registro empresarial (`BusinessRegistrationForm.tsx`).
@@ -147,11 +150,16 @@
 
 ## 9. Modelo de datos (Supabase)
 
+### Tablas de Supabase (visión general)
+- `businesses`: registro maestro de empresas verificadas (18 columnas, RLS activa).
+- `verification_attempts`: histórico de intentos de verificación (6 columnas, RLS).
+- `business_snapshots`: snapshots periódicos de rating y reseñas por negocio (6 columnas, RLS, FK a businesses con CASCADE).
+
 ### Tablas actuales
 - `auth.users` — gestionada por Supabase Auth.
 - `profiles` — datos extendidos del usuario (nombre, apellido, rol consumidor/empresa).
 - `reservations` — reservas por email (mantiene el compañero).
-- `businesses` — empresas registradas y verificadas (14 columnas). Campos clave: `cif`, `razon_social`, `domicilio_fiscal`, `ciudad`, `tipo_entidad` (empresa/autonomo), `google_place_id`, `verification_status`, `verification_score` (0-2), `verification_data` (jsonb), `owner_user_id` (FK a auth.users con CASCADE). RLS con 4 policies.
+- `businesses` — empresas registradas y verificadas (18 columnas). Campos clave: `cif`, `razon_social`, `domicilio_fiscal`, `ciudad`, `tipo_entidad` (empresa/autonomo), `google_place_id`, `verification_status`, `verification_score` (0-2), `verification_data` (jsonb), `owner_user_id` (FK a auth.users con CASCADE). RLS con 4 policies.
 - `verification_attempts` — auditoría de verificaciones (6 columnas). Campos: `business_id` (FK CASCADE), `check_type`, `result`, `details` (jsonb), `created_at`. RLS con 1 policy.
 
 ### Tablas planificadas
@@ -243,6 +251,8 @@ Específico, con alcance limitado, con manejo de errores explícito.
 - **Decisión de producto pendiente:** un usuario puede tener 1 solo negocio asociado actualmente. En el futuro, permitir varios negocios por usuario con un selector tipo Instagram (cambiar entre dashboards de distintos negocios sin cerrar sesión). Cuando se implemente: revisar `App.tsx` (query en `useEffect`), `BusinessDashboard.tsx` (query interna con `.maybeSingle()`), y añadir un selector en el Navbar o en el propio dashboard.
 - **[DEUDA TÉCNICA]** La Edge Function que consulta detalles de Google Places está desplegada en Supabase con nombre `smooth-api` (autogenerado, sin revertir al crear). El frontend la invoca ahora como `smooth-api` para desbloquear el frente bloqueante. Pendiente: descargar el código con `supabase functions download smooth-api`, versionarlo en `supabase/functions/get-place-details/`, redesplegar con nombre correcto, actualizar frontend a `get-place-details`, borrar `smooth-api`. Hacer cuando no haya presión de otros frentes.
 - **[DEUDA TÉCNICA MENOR]** El BusinessDashboard muestra brevemente el estado "sin negocio" al hacer logout desde el propio dashboard, antes de la redirección. Es cosmético (fracción de segundo) y no bloqueante. Solución posible: añadir `if (!user) return null;` al inicio del componente para evitar el flash.
+- **[DEUDA TÉCNICA]** 7-8 snapshots simulados en `business_snapshots` para Inditex SA (id `3cd91587-b4de-489d-9bb7-b411d7b62274`), marcados con `raw_data.simulated = true`. Fueron creados para probar el dashboard sin esperar meses de datos reales. Cuando el sistema esté en producción con varios negocios, decidir si borrarlos o mantenerlos como referencia histórica del negocio original de test.
+- **[NUEVA INFRAESTRUCTURA]** Existe cron job `weekly-business-snapshots` en Supabase Cron que ejecuta cada lunes 3am UTC un SQL que invoca `snapshot-business` para cada negocio verificado. Usa Vault para almacenar `project_url` y `service_role_key` de forma segura. Ver Integrations > Cron en el dashboard.
 ---
 
 ## 14. Nota final
