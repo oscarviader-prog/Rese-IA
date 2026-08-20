@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { CheckCircle, AlertCircle, XCircle, Loader2, RefreshCw, Pencil, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { BusinessMetricsDashboard } from './BusinessMetricsDashboard';
 
 interface BusinessDashboardProps {
   onBackToRegister?: () => void;
@@ -361,7 +362,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
             </div>
           </div>
           <BusinessDataList business={business} onUpdated={handleBusinessUpdated} />
-          <UpcomingSection />
+          <BusinessMetricsDashboard businessId={business.id} />
         </div>
       </div>
     );
