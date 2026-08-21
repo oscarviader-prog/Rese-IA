@@ -24,7 +24,7 @@ async function obtenerDetallesGoogle(placeId: string) {
     method: 'GET',
     headers: {
       'X-Goog-Api-Key': GOOGLE_PLACES_KEY,
-      'X-Goog-FieldMask': 'id,displayName,rating,userRatingCount'
+      'X-Goog-FieldMask': 'id,displayName,rating,userRatingCount,reviews'
     }
   })
 
@@ -35,6 +35,23 @@ async function obtenerDetallesGoogle(placeId: string) {
   }
 
   return data
+}
+
+// ==========================================
+// HASH DE RESEÑA (deduplicación)
+// ==========================================
+async function generarReviewHash(
+  businessId: string,
+  authorName: string | null,
+  rating: number | null,
+  text: string | null
+): Promise<string> {
+  const raw = `${businessId}|${authorName ?? ''}|${rating ?? ''}|${text ?? ''}`
+  const encoder = new TextEncoder()
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(raw))
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 // ==========================================
@@ -105,8 +122,49 @@ serve(async (req) => {
 
     console.log('Snapshot insertado correctamente para businessId:', businessId)
 
+    const googleReviews = Array.isArray(googleData?.reviews) ? googleData.reviews : []
+    console.log('Reseñas devueltas por Google:', googleReviews.length)
+
+    let reviewsCaptured = 0
+
+    if (googleReviews.length > 0) {
+      const reviewRows = await Promise.all(googleReviews.map(async (review: any) => {
+        const authorName = review.authorAttribution?.displayName ?? null
+        const reviewRating = review.rating ?? null
+        const reviewText = review.text?.text ?? null
+        const relativeTime = review.relativePublishTimeDescription ?? null
+        const reviewHash = await generarReviewHash(businessId, authorName, reviewRating, reviewText)
+
+        return {
+          business_id: businessId,
+          author_name: authorName,
+          rating: reviewRating,
+          text: reviewText,
+          relative_time: relativeTime,
+          raw_data: review,
+          review_hash: reviewHash
+        }
+      }))
+
+      console.log('Reseñas a intentar insertar:', reviewRows.length)
+
+      const { error: reviewsError } = await supabase
+        .from('business_reviews')
+        .upsert(reviewRows, { onConflict: 'review_hash', ignoreDuplicates: true })
+
+      if (reviewsError) {
+        console.error('Error al insertar reseñas:', reviewsError)
+      } else {
+        reviewsCaptured = reviewRows.length
+        console.log('Reseñas insertadas correctamente:', reviewsCaptured)
+      }
+    }
+
     return new Response(
-      JSON.stringify({ success: true, snapshot: { rating, user_ratings_total: userRatingsTotal } }),
+      JSON.stringify({
+        success: true,
+        snapshot: { rating, user_ratings_total: userRatingsTotal, reviews_captured: reviewsCaptured }
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
