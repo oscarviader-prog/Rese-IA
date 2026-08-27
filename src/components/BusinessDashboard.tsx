@@ -3,6 +3,7 @@ import { CheckCircle, AlertCircle, XCircle, Loader2, RefreshCw, Pencil, X } from
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { BusinessMetricsDashboard } from './BusinessMetricsDashboard';
+import { BusinessAlertsSection } from './BusinessAlertsSection';
 
 interface BusinessDashboardProps {
   onBackToRegister?: () => void;
@@ -363,6 +364,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
           </div>
           <BusinessDataList business={business} onUpdated={handleBusinessUpdated} />
           <BusinessMetricsDashboard businessId={business.id} />
+          <BusinessAlertsSection businessId={business.id} />
         </div>
       </div>
     );
