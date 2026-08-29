@@ -18,6 +18,8 @@
 - **Entorno de desarrollo:** WSL Debian sobre Windows + VS Code + opencode
 - **Repositorio:** GitHub privado
 - **Librería de gráficos:** `recharts` (para visualizaciones en el dashboard de empresa).
+- **Generación de PDFs:** `@react-pdf/renderer` (para descargar informes de negocio en PDF).
+- **IA generativa:** Google Gemini API REST (modelo gemini-3.5-flash-lite) para respuestas sugeridas a reseñas.
 
 ---
 
@@ -35,6 +37,15 @@
 - Anti-fraude: datos verificados (CIF, razón social, domicilio) no editables desde la UI.
 - Sistema de snapshots periódicos del rating de Google Places para negocios verificados (tabla `business_snapshots`, Edge Function `snapshot-business`, cron job semanal lunes 3am).
 - Dashboard visual de evolución de rating en el panel de empresa (`BusinessMetricsDashboard.tsx` con recharts).
+- Sistema completo de alertas automáticas (tabla business_reviews con hash SHA-256 para deduplicación, tabla business_alerts con soporte para respuesta sugerida). Detecta reseñas nuevas y cambios significativos de rating (>=0.2 warning, >=0.3 critical).
+- Edge Function `detect-alerts` que compara snapshots consecutivos y genera alertas en business_alerts.
+- Edge Function `generate-review-reply` que llama a Gemini API REST (modelo gemini-3.5-flash-lite) para generar respuestas sugeridas empáticas en español. Incluye cache en columna suggested_reply para evitar tokens innecesarios.
+- Componente BusinessAlertsSection.tsx: lista de alertas en el dashboard con filtros por severity, botón "Marcar como leída" (con optimistic update), botón "Generar respuesta sugerida" y botón "Copiar" al portapapeles.
+- Sistema completo de informes de actividad (tabla business_reports, columna report_frequency en businesses).
+- Edge Function `generate-report` que calcula métricas del período según reportType (weekly/biweekly/monthly/on_demand) y las guarda en business_reports.
+- Cron job weekly-business-snapshots actualizado: ejecuta snapshot-business + detect-alerts + generate-report (este último solo si toca según report_frequency de cada negocio y días desde el último informe).
+- Componente BusinessReportsSection.tsx: selector de frecuencia (semanal/quincenal/mensual), botón "Generar informe ahora", lista de informes con detalles expandibles, y descarga en PDF.
+- Componente BusinessReportPDF.tsx: genera PDFs vectoriales con @react-pdf/renderer. PDF de 1 página A4 con header, resumen de métricas, mejor/peor reseña del período y footer.
 
 ### En desarrollo
 - Frontend de registro empresarial (`BusinessRegistrationForm.tsx`).
@@ -154,6 +165,9 @@
 - `businesses`: registro maestro de empresas verificadas (18 columnas, RLS activa).
 - `verification_attempts`: histórico de intentos de verificación (6 columnas, RLS).
 - `business_snapshots`: snapshots periódicos de rating y reseñas por negocio (6 columnas, RLS, FK a businesses con CASCADE).
+- `business_reviews`: reseñas individuales capturadas de Google Places, con review_hash único SHA-256 para deduplicación (9 columnas, RLS, FK a businesses con CASCADE).
+- `business_alerts`: alertas generadas por el sistema (10 columnas, RLS con SELECT + UPDATE policies, 2 FKs: business_id CASCADE y related_review_id SET NULL, incluye suggested_reply para cache de respuestas IA).
+- `business_reports`: informes de actividad generados periódicamente (7 columnas, RLS, FK a businesses con CASCADE, campo metrics jsonb con estructura conocida).
 
 ### Tablas actuales
 - `auth.users` — gestionada por Supabase Auth.
@@ -253,6 +267,10 @@ Específico, con alcance limitado, con manejo de errores explícito.
 - **[DEUDA TÉCNICA MENOR]** El BusinessDashboard muestra brevemente el estado "sin negocio" al hacer logout desde el propio dashboard, antes de la redirección. Es cosmético (fracción de segundo) y no bloqueante. Solución posible: añadir `if (!user) return null;` al inicio del componente para evitar el flash.
 - **[DEUDA TÉCNICA]** 7-8 snapshots simulados en `business_snapshots` para Inditex SA (id `3cd91587-b4de-489d-9bb7-b411d7b62274`), marcados con `raw_data.simulated = true`. Fueron creados para probar el dashboard sin esperar meses de datos reales. Cuando el sistema esté en producción con varios negocios, decidir si borrarlos o mantenerlos como referencia histórica del negocio original de test.
 - **[NUEVA INFRAESTRUCTURA]** Existe cron job `weekly-business-snapshots` en Supabase Cron que ejecuta cada lunes 3am UTC un SQL que invoca `snapshot-business` para cada negocio verificado. Usa Vault para almacenar `project_url` y `service_role_key` de forma segura. Ver Integrations > Cron en el dashboard.
+- **[DEUDA TÉCNICA]** Las Edge Functions `search-places`, `smooth-api` (deberían ser get-place-details), `snapshot-business` no versionado inicialmente, `detect-alerts`, `generate-review-reply` y `generate-report` fueron desplegadas manualmente vía copy/paste en el dashboard de Supabase. Solo `verify-business` fue versionada desde el inicio. Sincronización actual: `snapshot-business`, `detect-alerts`, `generate-review-reply` y `generate-report` SÍ están versionadas en el repo. `search-places` y `smooth-api` siguen sin versionar. Pendiente: descargar código de las 2 restantes, versionar, redesplegar con nombres correctos.
+- **[DEUDA TÉCNICA]** Durante Sub-fase 2C hubo desincronización entre código local y código desplegado en Supabase para `generate-review-reply`: el modelo Gemini se cambió a `gemini-3.5-flash-lite` directamente en el dashboard de Supabase pero no se sincronizó al repo local hasta días después (detectado en Sub-fase 3E). Ejemplo del patrón: editar Edge Functions solo en dashboard sin actualizar repo local genera desincronización invisible. Regla operativa: cualquier cambio en Edge Function debe hacerse SIEMPRE primero en el repo local + git commit + push + redespliegue desde el dashboard (copy/paste del archivo local).
+- **[DEUDA TÉCNICA MENOR]** favicon.ico no existe en el proyecto. El navegador da 404 al cargar cualquier página. Es cosmético, no bloqueante. Añadir cuando se prepare producción.
+- **[NUEVA INFRAESTRUCTURA]** Cron job `weekly-business-snapshots` ahora ejecuta 3 acciones por cada negocio verificado: snapshot-business + detect-alerts + generate-report (con lógica de días transcurridos según report_frequency). Ver Integrations > Cron en el dashboard.
 ---
 
 ## 14. Nota final
