@@ -11,7 +11,9 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
+import { PDFDownloadLink } from '@react-pdf/renderer';
 import { supabase } from '../lib/supabase';
+import { ReportPDFDocument, buildFileName } from './BusinessReportPDF';
 
 type ReportFrequency = 'weekly' | 'biweekly' | 'monthly';
 type ReportType = 'weekly' | 'biweekly' | 'monthly' | 'on_demand';
@@ -209,6 +211,7 @@ export const BusinessReportsSection: React.FC<BusinessReportsSectionProps> = ({
   const [generating, setGenerating] = useState(false);
   const [generatingError, setGeneratingError] = useState<string | null>(null);
   const [expandedFor, setExpandedFor] = useState<string | null>(null);
+  const [businessName, setBusinessName] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -217,13 +220,18 @@ export const BusinessReportsSection: React.FC<BusinessReportsSectionProps> = ({
       setIsLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .from('business_reports')
-        .select('*')
-        .eq('business_id', businessId)
-        .order('generated_at', { ascending: false });
+      const [reportsResult, businessResult] = await Promise.all([
+        supabase
+          .from('business_reports')
+          .select('*')
+          .eq('business_id', businessId)
+          .order('generated_at', { ascending: false }),
+        supabase.from('businesses').select('razon_social').eq('id', businessId).maybeSingle(),
+      ]);
 
       if (!isMounted) return;
+
+      const { data, error: fetchError } = reportsResult;
 
       if (fetchError) {
         console.error('Error al obtener los informes del negocio:', fetchError);
@@ -231,6 +239,14 @@ export const BusinessReportsSection: React.FC<BusinessReportsSectionProps> = ({
         setReports([]);
       } else {
         setReports((data as Report[] | null) ?? []);
+      }
+
+      if (businessResult.error) {
+        console.error('Error al obtener el nombre del negocio:', businessResult.error);
+      } else {
+        setBusinessName(
+          (businessResult.data as { razon_social: string } | null)?.razon_social ?? null
+        );
       }
 
       setIsLoading(false);
@@ -431,13 +447,39 @@ export const BusinessReportsSection: React.FC<BusinessReportsSectionProps> = ({
                       </>
                     )}
                   </button>
-                  <span
-                    title="Próximamente"
-                    className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-400 cursor-not-allowed border border-gray-200 rounded-lg px-3 py-1.5"
+                  <PDFDownloadLink
+                    document={
+                      <ReportPDFDocument
+                        report={report}
+                        businessName={businessName ?? 'Mi negocio'}
+                      />
+                    }
+                    fileName={buildFileName(
+                      report.report_type,
+                      businessName ?? 'Mi negocio',
+                      report.generated_at
+                    )}
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    Descargar PDF
-                  </span>
+                    {({ loading }) => (
+                      <span
+                        className={`flex items-center gap-1.5 text-sm text-gray-700 border border-gray-300 hover:bg-gray-50 font-medium py-1.5 px-3 rounded-lg transition-colors ${
+                          loading ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Generando PDF...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-3.5 h-3.5" />
+                            Descargar PDF
+                          </>
+                        )}
+                      </span>
+                    )}
+                  </PDFDownloadLink>
                 </div>
 
                 {/* Detalles */}
