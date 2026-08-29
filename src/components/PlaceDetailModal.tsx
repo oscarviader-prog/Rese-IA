@@ -81,9 +81,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
           throw new Error('Supabase client not initialized');
         }
 
-        // TODO: renombrar la función 'smooth-api' en Supabase a 'get-place-details'
-        // (nombre autogenerado no revertido — ver AGENTS.md sección 13).
-        const res = await supabase.functions.invoke('smooth-api', {
+        const res = await supabase.functions.invoke('get-place-details', {
           body: { placeId },
         });
 
