@@ -276,6 +276,8 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
     setBusiness((prev) => (prev ? { ...prev, ...updates } : prev));
   };
 
+  if (!user) return null;
+
   if (authLoading || (user && isLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F5F6F8] px-4">
