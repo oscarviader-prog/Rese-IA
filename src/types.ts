@@ -1,4 +1,4 @@
-export type ViewState = 'landing' | 'consumer' | 'business' | 'business_register' | 'business_dashboard' | 'login' | 'register' | 'forgot_password';
+export type ViewState = 'landing' | 'consumer' | 'consumer_chat' | 'business' | 'business_register' | 'business_dashboard' | 'login' | 'register' | 'forgot_password';
 
 export type UserRole = 'consumer' | 'business';
 

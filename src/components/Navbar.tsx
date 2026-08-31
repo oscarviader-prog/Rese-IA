@@ -52,7 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* View Switcher & Search (Consumer) */}
-          {currentView === 'consumer' && (
+          {(currentView === 'consumer' || currentView === 'consumer_chat') && (
             <div className="relative w-full sm:w-96 md:w-[480px] my-1 sm:my-0">
               <SearchBar 
                 onSelectPlace={(id, place) => onSelectPlace?.(id, place)}
@@ -66,7 +66,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               onClick={() => onNavigate('consumer')}
               className={`px-2.5 py-1.5 rounded text-xs font-mono-code transition-all flex items-center gap-1.5 ${
-                currentView === 'consumer' 
+                currentView === 'consumer' || currentView === 'consumer_chat'
                   ? 'text-[#00f2ff] bg-[#00f2ff]/10 border border-[#00f2ff]/40' 
                   : 'text-white/70 hover:text-white'
               }`}

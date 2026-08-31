@@ -12,3 +12,6 @@ coverage/
 
 # Mirror local de AGENTS.md generado por el entorno IDE — AGENTS.md es la fuente de verdad
 CLAUDE.md
+
+# Artefactos locales de enlace generados por Supabase CLI (supabase link)
+supabase/.temp/

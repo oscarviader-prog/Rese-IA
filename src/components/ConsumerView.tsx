@@ -25,7 +25,8 @@ import {
   Users,
   BookmarkCheck,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Bot,
 } from 'lucide-react';
 
 interface ConsumerViewProps {
@@ -33,13 +34,15 @@ interface ConsumerViewProps {
   setSearchQuery?: (q: string) => void;
   onSelectPlace?: (placeId: string, place?: PlaceResult) => void;
   selectedPlace?: PlaceResult | null;
+  onOpenChat?: () => void;
 }
 
 export const ConsumerView: React.FC<ConsumerViewProps> = ({
   searchQuery = '',
   setSearchQuery,
   onSelectPlace,
-  selectedPlace
+  selectedPlace,
+  onOpenChat,
 }) => {
   const { user } = useAuth();
 
@@ -167,6 +170,31 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
           />
         </div>
       </PastelCard>
+
+      {/* 1.2 AI Chatbot Access Card */}
+      {onOpenChat && (
+        <PastelCard variant="darker" className="border-2 border-[#0F766E]/50 hover:border-[#0F766E]/80 transition-all cursor-pointer group" onClick={onOpenChat}>
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-xl bg-[#0F766E]/10 border border-[#0F766E]/30 group-hover:bg-[#0F766E]/20 transition-colors shadow-[0_0_15px_rgba(15,118,110,0.15)]">
+              <Bot className="w-6 h-6 text-[#0F766E]" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-display font-bold text-slate-900 flex items-center gap-2">
+                Asistente de Recomendaciones
+                <span className="px-2 py-0.5 rounded-full bg-[#0F766E]/10 text-[#0F766E] text-[10px] font-mono-code font-bold uppercase border border-[#0F766E]/30">
+                  IA
+                </span>
+              </h3>
+              <p className="text-[11px] font-mono-code text-slate-600 mt-0.5">
+                Describe qué buscas y te ayudaré a encontrar el lugar ideal
+              </p>
+            </div>
+            <div className="px-3 py-1.5 rounded-lg bg-[#0F766E] text-white text-[11px] font-mono-code font-bold group-hover:bg-[#0d665e] transition-colors shadow-sm hidden sm:block">
+              Abrir Chat
+            </div>
+          </div>
+        </PastelCard>
+      )}
 
       {/* 1.5 Mis Reservas en Vivo Card (Desplegable) */}
       <PastelCard variant="darker" className="border-2 border-cyan-500/40 p-0 overflow-hidden">
