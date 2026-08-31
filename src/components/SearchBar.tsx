@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Search, Star, MapPin, Loader2, Building2, X, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { FavoriteButton } from './FavoriteButton';
 
 export interface PlaceResult {
   id: string;
@@ -227,29 +228,33 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                   const category = place.primaryTypeDisplayName?.text || 'Establecimiento';
 
                   return (
-                    <button
+                    <div
                       key={place.id}
-                      type="button"
-                      onClick={() => handleSelect(place)}
-                      className="w-full p-4 rounded-xl text-left bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-[#00f2ff] hover:shadow-[0_0_20px_rgba(0,242,255,0.2)] transition-all cursor-pointer group flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
+                      className="w-full p-4 rounded-xl text-left bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-[#00f2ff] hover:shadow-[0_0_20px_rgba(0,242,255,0.2)] transition-all group flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
                     >
-                      <div className="space-y-1.5 flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-extrabold text-base sm:text-lg text-white group-hover:text-[#00f2ff] transition-colors leading-snug">
-                            {name}
-                          </span>
-                          <span className="px-2.5 py-0.5 rounded-md text-[11px] font-mono-code bg-cyan-950/90 text-cyan-200 border border-cyan-800/80 font-semibold shrink-0">
-                            {category}
-                          </span>
+                      <button
+                        type="button"
+                        onClick={() => handleSelect(place)}
+                        className="flex-1 min-w-0 text-left space-y-1.5 cursor-pointer"
+                      >
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-extrabold text-base sm:text-lg text-white group-hover:text-[#00f2ff] transition-colors leading-snug">
+                              {name}
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded-md text-[11px] font-mono-code bg-cyan-950/90 text-cyan-200 border border-cyan-800/80 font-semibold shrink-0">
+                              {category}
+                            </span>
+                          </div>
+
+                          <p className="text-xs sm:text-sm text-slate-300 flex items-start gap-2 leading-relaxed">
+                            <MapPin className="w-4 h-4 text-[#00f2ff] shrink-0 mt-0.5" />
+                            <span className="break-words">{address}</span>
+                          </p>
                         </div>
+                      </button>
 
-                        <p className="text-xs sm:text-sm text-slate-300 flex items-start gap-2 leading-relaxed">
-                          <MapPin className="w-4 h-4 text-[#00f2ff] shrink-0 mt-0.5" />
-                          <span className="break-words">{address}</span>
-                        </p>
-                      </div>
-
-                      <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/10">
+                      <div className="flex flex-row items-center justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/10">
                         {rating !== undefined ? (
                           <div className="flex flex-col items-start sm:items-end">
                             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-sm font-mono-code font-extrabold shadow-sm">
@@ -266,11 +271,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                           <span className="text-xs text-slate-500 italic">Sin valoración</span>
                         )}
 
+                        <FavoriteButton place={place} />
+
                         <span className="text-xs font-mono-code text-[#00f2ff] opacity-0 group-hover:opacity-100 transition-opacity font-bold hidden sm:inline-block mt-2">
                           Seleccionar →
                         </span>
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>

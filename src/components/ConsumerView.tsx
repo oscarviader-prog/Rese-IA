@@ -5,6 +5,8 @@ import { ReviewModal } from './ReviewModal';
 import { ReservationEmailModal } from './ReservationEmailModal';
 import { SearchBar, PlaceResult } from './SearchBar';
 import { ConsumerPreferences } from './ConsumerPreferences';
+import { ConsumerFavorites } from './ConsumerFavorites';
+import { FavoriteButton } from './FavoriteButton';
 import { useAuth } from '../context/AuthContext';
 import { getStoredBookings, saveBooking, cancelBooking } from '../lib/bookings';
 import {
@@ -200,6 +202,14 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
       {/* 1.3 Consumer Preferences */}
       <ConsumerPreferences userId={user?.id} />
 
+      {/* 1.4 Consumer Favorites */}
+      <ConsumerFavorites
+        userId={user?.id}
+        onViewPlace={(placeId, place) => {
+          if (onSelectPlace) onSelectPlace(placeId, place);
+        }}
+      />
+
       {/* 1.5 Mis Reservas en Vivo Card (Desplegable) */}
       <PastelCard variant="darker" className="border-2 border-cyan-500/40 p-0 overflow-hidden">
         <button
@@ -344,13 +354,16 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
                 </p>
               </div>
 
-              <button
-                onClick={() => setIsReviewModalOpen(true)}
-                className="self-start px-3.5 py-2 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white text-xs font-mono-code font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
-              >
-                <PlusCircle className="w-4 h-4" />
-                ✍️ Escribe tu reseña
-              </button>
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <FavoriteButton place={selectedPlace} />
+                <button
+                  onClick={() => setIsReviewModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white text-xs font-mono-code font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  ✍️ Escribe tu reseña
+                </button>
+              </div>
             </div>
 
             {/* Dos Cajas Comparativas */}

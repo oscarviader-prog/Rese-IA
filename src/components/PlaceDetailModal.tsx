@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { ReviewModal } from './ReviewModal';
 import { NewReview } from '../types';
+import { FavoriteButton } from './FavoriteButton';
+import { PlaceResult } from './SearchBar';
 
 export interface GooglePlaceReview {
   authorAttribution?: {
@@ -241,14 +243,26 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setIsWriteReviewOpen(true)}
-                    className="self-start px-3.5 py-2 rounded-xl bg-[#0F766E] hover:bg-[#0d665f] text-white text-xs font-mono-code font-bold shadow-md transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
-                  >
-                    <PlusCircle className="w-4 h-4" />
-                    <span>Añadir Reseña</span>
-                  </button>
+                  <div className="flex items-center gap-2 flex-wrap shrink-0">
+                    <FavoriteButton
+                      place={{
+                        id: details?.id || placeId,
+                        displayName: details?.displayName,
+                        formattedAddress: details?.formattedAddress,
+                        rating: details?.rating,
+                        userRatingCount: details?.userRatingCount,
+                        primaryTypeDisplayName: details?.primaryTypeDisplayName,
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsWriteReviewOpen(true)}
+                      className="px-3.5 py-2 rounded-xl bg-[#0F766E] hover:bg-[#0d665f] text-white text-xs font-mono-code font-bold shadow-md transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                      <span>Añadir Reseña</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Rating & Contact Bar */}

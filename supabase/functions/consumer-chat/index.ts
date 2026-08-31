@@ -64,10 +64,52 @@ async function obtenerPreferencias(token: string | null): Promise<string | null>
   }
 }
 
+/**
+ * Obtiene los establecimientos favoritos del consumidor autenticado.
+ * Solo devuelve resultados si el JWT del request corresponde a un usuario
+ * válido de Supabase. Si no hay sesión (ej. modo mock) devuelve null,
+ * manteniendo el comportamiento previo.
+ */
+async function obtenerFavoritos(token: string | null): Promise<string[] | null> {
+  if (!token) return null
+
+  try {
+    const { data: userData, error: authError } = await supabaseAdmin.auth.getUser(token)
+    if (authError || !userData?.user) {
+      console.warn('consumer-chat: JWT no válido, sin favoritos')
+      return null
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('consumer_favorites')
+      .select('place_name, place_category, place_address')
+      .eq('user_id', userData.user.id)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.warn('consumer-chat: error consultando favoritos:', error.message)
+      return null
+    }
+
+    const rows = Array.isArray(data) ? data : []
+    return rows.map((r) => {
+      const row = r as { place_name?: string; place_category?: string; place_address?: string }
+      return [row.place_name, row.place_category, row.place_address]
+        .map((p) => String(p || '').trim())
+        .filter(Boolean)
+        .join(' · ')
+    }).filter(Boolean)
+  } catch (err) {
+    console.warn('consumer-chat: error obteniendo favoritos:', (err as Error).message)
+    return null
+  }
+}
+
 function construirPrompt(
   history: ChatMessage[],
   userCity: string | undefined,
-  preferences: string | null
+  preferences: string | null,
+  favoritos: string[] | null
 ): string {
   const locationContext = userCity
     ? `El consumidor se encuentra en la zona de ${userCity}. Si es relevante, prioriza establecimientos cercanos a esa zona.`
@@ -77,6 +119,12 @@ function construirPrompt(
     ? `PREFERENCIAS PERSISTENTES DEL CONSUMIDOR (indicadas previamente por él):
 ${preferences}
 Ten en cuenta estas preferencias para personalizar tus recomendaciones. Si la petición actual del consumidor contradice una preferencia anterior, prioriza SIEMPRE la petición actual.`
+    : ''
+
+  const favoritosContext = favoritos && favoritos.length > 0
+    ? `ESTABLECIMIENTOS FAVORITOS DEL CONSUMIDOR (guardados por él previamente en su lista de favoritos):
+${favoritos.join('\n')}
+Estos son establecimientos que el consumidor ya conoce y guardó como favoritos. Úsalos como contexto para personalizar tus recomendaciones: sugiere lugares o experiencias relacionadas con esos favoritos cuando encaje con la petición. No inventes que un establecimiento es favorito si no aparece en esta lista, y no sugieras favoritos de otros usuarios. Si la petición actual del consumidor contradice un favorito, prioriza SIEMPRE la petición actual.`
     : ''
 
   const historyText = history
@@ -100,11 +148,12 @@ REGLAS FUNDAMENTALES:
 10. No uses emojis.
 ${locationContext}
 ${preferencesContext}
+${favoritosContext}
 
 CONVERSACIÓN ACTUAL:
 ${historyText}
 
-Responde al último mensaje del consumidor. Ten en cuenta las preferencias persistentes cuando existan, pero respeta la petición actual. Si la conversación acaba de empezar y el primer mensaje es ambiguo, pide información adicional.`
+Responde al último mensaje del consumidor. Ten en cuenta las preferencias persistentes y los favoritos cuando existan, pero respeta la petición actual. Si la conversación acaba de empezar y el primer mensaje es ambiguo, pide información adicional.`
 }
 
 serve(async (req) => {
@@ -139,14 +188,18 @@ serve(async (req) => {
 
     const fullHistory: ChatMessage[] = [...history, { role: 'user', content: trimmedMessage }]
 
-    // Obtener preferencias persistentes del usuario autenticado de forma segura.
+    // Obtener preferencias y favoritos persistentes del usuario autenticado de forma segura.
     const token = extraerBearer(req)
-    const preferences = await obtenerPreferencias(token)
+    const [preferences, favoritos] = await Promise.all([
+      obtenerPreferencias(token),
+      obtenerFavoritos(token),
+    ])
 
     const prompt = construirPrompt(
       fullHistory,
       typeof userCity === 'string' ? userCity : undefined,
-      preferences
+      preferences,
+      favoritos
     )
 
     const geminiResponse = await fetch(GEMINI_URL, {
