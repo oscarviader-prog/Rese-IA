@@ -6,9 +6,11 @@ import { ReservationEmailModal } from './ReservationEmailModal';
 import { SearchBar, PlaceResult } from './SearchBar';
 import { ConsumerPreferences } from './ConsumerPreferences';
 import { ConsumerFavorites } from './ConsumerFavorites';
+import { ImportantDatesSection } from './ImportantDatesSection';
 import { FavoriteButton } from './FavoriteButton';
 import { useAuth } from '../context/AuthContext';
 import { getStoredBookings, saveBooking, cancelBooking } from '../lib/bookings';
+import { getConsumerImportantDates, isReminderDue, nextOccurrence, ImportantDate } from '../lib/importantDates';
 import {
   Sparkles,
   PlusCircle,
@@ -30,6 +32,8 @@ import {
   Trash2,
   AlertTriangle,
   Bot,
+  CalendarHeart,
+  Bell,
 } from 'lucide-react';
 
 interface ConsumerViewProps {
@@ -72,9 +76,33 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
   const [userBookings, setUserBookings] = useState<UserBooking[]>([]);
   const [isBookingsSectionOpen, setIsBookingsSectionOpen] = useState(false);
 
+  // Fechas importantes: recordatorios a 7 días
+  const [upcomingReminders, setUpcomingReminders] = useState<ImportantDate[]>([]);
+  const [autoOpen, setAutoOpen] = useState<{ dateId: string; nonce: number } | null>(null);
+
   useEffect(() => {
     setUserBookings(getStoredBookings());
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setUpcomingReminders([]);
+      return;
+    }
+    let active = true;
+    (async () => {
+      const { data, error } = await getConsumerImportantDates();
+      if (!active) return;
+      if (error) {
+        setUpcomingReminders([]);
+        return;
+      }
+      setUpcomingReminders(data.filter((d) => isReminderDue(d, new Date())));
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
 
   // Update email if user changes or logs in
   useEffect(() => {
@@ -210,7 +238,61 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
         }}
       />
 
-      {/* 1.5 Mis Reservas en Vivo Card (Desplegable) */}
+      {/* 1.4b Recordatorio global: fechas importantes a 7 días */}
+      {upcomingReminders.length > 0 && (
+        <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="p-1.5 rounded-lg bg-amber-200 text-amber-800">
+              <Bell className="w-4 h-4" />
+            </div>
+            <h3 className="text-sm font-mono-code font-bold uppercase tracking-wider text-amber-900">
+              Recordatorio · tus fechas importantes están muy cerca
+            </h3>
+          </div>
+          <div className="space-y-2">
+            {upcomingReminders.map((d) => {
+              const next = nextOccurrence(d, new Date());
+              return (
+                <div
+                  key={d.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-white border border-amber-300"
+                >
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{d.name}</p>
+                    <p className="text-xs font-mono-code text-slate-600">
+                      Falta 1 semana para {d.day}/
+                      {String(d.month).padStart(2, '0')}
+                      {d.occurrence_type === 'unica' && d.year ? `/${d.year}` : ''} ·{' '}
+                      {next
+                        ? `se celebra el ${next.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`
+                        : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAutoOpen({ dateId: d.id, nonce: Date.now() })}
+                    className="px-3.5 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-mono-code font-bold transition-all cursor-pointer shrink-0"
+                  >
+                    Ver recomendaciones para esta ocasión
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 1.5 Mis Fechas Importantes */}
+      <ImportantDatesSection
+        userId={user?.id}
+        zone={user?.city}
+        autoOpen={autoOpen}
+        onViewPlace={(placeId, place) => {
+          if (onSelectPlace) onSelectPlace(placeId, place);
+        }}
+      />
+
+      {/* 1.6 Mis Reservas en Vivo Card (Desplegable) */}
       <PastelCard variant="darker" className="border-2 border-cyan-500/40 p-0 overflow-hidden">
         <button
           type="button"
