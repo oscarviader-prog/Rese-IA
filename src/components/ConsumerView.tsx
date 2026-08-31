@@ -7,10 +7,12 @@ import { SearchBar, PlaceResult } from './SearchBar';
 import { ConsumerPreferences } from './ConsumerPreferences';
 import { ConsumerFavorites } from './ConsumerFavorites';
 import { ImportantDatesSection } from './ImportantDatesSection';
+import { AlertSettingsSection } from './AlertSettingsSection';
 import { FavoriteButton } from './FavoriteButton';
 import { useAuth } from '../context/AuthContext';
 import { getStoredBookings, saveBooking, cancelBooking } from '../lib/bookings';
 import { getConsumerImportantDates, isReminderDue, nextOccurrence, ImportantDate } from '../lib/importantDates';
+import { shouldNotify } from '../lib/consumerAlerts';
 import {
   Sparkles,
   PlusCircle,
@@ -78,6 +80,7 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
 
   // Fechas importantes: recordatorios a 7 días
   const [upcomingReminders, setUpcomingReminders] = useState<ImportantDate[]>([]);
+  const [remindersAllowed, setRemindersAllowed] = useState(true);
   const [autoOpen, setAutoOpen] = useState<{ dateId: string; nonce: number } | null>(null);
 
   useEffect(() => {
@@ -91,6 +94,17 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
     }
     let active = true;
     (async () => {
+      // La alerta "recordatorio de fecha importante" se respeta: si el consumidor
+      // la tiene inactiva, en "No molestar" o sin el canal in_app, no se muestra
+      // el recordatorio in-app (requisito 5).
+      const { decision } = await shouldNotify('important_date_reminder');
+      if (!active) return;
+      const allowed = decision.shouldNotify && decision.channels.includes('in_app');
+      setRemindersAllowed(allowed);
+      if (!allowed) {
+        setUpcomingReminders([]);
+        return;
+      }
       const { data, error } = await getConsumerImportantDates();
       if (!active) return;
       if (error) {
@@ -239,7 +253,7 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
       />
 
       {/* 1.4b Recordatorio global: fechas importantes a 7 días */}
-      {upcomingReminders.length > 0 && (
+      {remindersAllowed && upcomingReminders.length > 0 && (
         <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-1.5">
             <div className="p-1.5 rounded-lg bg-amber-200 text-amber-800">
@@ -291,6 +305,9 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
           if (onSelectPlace) onSelectPlace(placeId, place);
         }}
       />
+
+      {/* 1.5b Alertas y notificaciones del consumidor */}
+      <AlertSettingsSection userId={user?.id} />
 
       {/* 1.6 Mis Reservas en Vivo Card (Desplegable) */}
       <PastelCard variant="darker" className="border-2 border-cyan-500/40 p-0 overflow-hidden">
