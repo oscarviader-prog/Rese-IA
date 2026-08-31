@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,14 +10,73 @@ const corsHeaders = {
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent'
 
+// Cliente con service_role: solo se usa en el servidor para leer las
+// preferencias del usuario autenticado (nunca se expone al frontend).
+const supabaseAdmin = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+)
+
 interface ChatMessage {
   role: 'user' | 'model'
   content: string
 }
 
-function construirPrompt(history: ChatMessage[], userCity?: string): string {
+function extraerBearer(req: Request): string | null {
+  const auth = req.headers.get('authorization')
+  if (!auth) return null
+  const match = auth.match(/^Bearer\s+(.+)$/i)
+  return match ? match[1].trim() : null
+}
+
+/**
+ * Obtiene las preferencias persistentes del consumidor autenticado.
+ * Solo devuelve resultados si el JWT del request corresponde a un usuario
+ * válido de Supabase. Si no hay sesión (ej. modo mock) devuelve null,
+ * manteniendo el comportamiento previo.
+ */
+async function obtenerPreferencias(token: string | null): Promise<string | null> {
+  if (!token) return null
+
+  try {
+    // getUser valida el JWT y extrae el usuario autenticado de forma segura.
+    const { data: userData, error: authError } = await supabaseAdmin.auth.getUser(token)
+    if (authError || !userData?.user) {
+      console.warn('consumer-chat: JWT no válido, sin preferencias')
+      return null
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('consumer_preferences')
+      .select('text')
+      .eq('user_id', userData.user.id)
+      .maybeSingle()
+
+    if (error) {
+      console.warn('consumer-chat: error consultando preferencias:', error.message)
+      return null
+    }
+
+    return data?.text ? String(data.text).trim() : null
+  } catch (err) {
+    console.warn('consumer-chat: error obteniendo preferencias:', (err as Error).message)
+    return null
+  }
+}
+
+function construirPrompt(
+  history: ChatMessage[],
+  userCity: string | undefined,
+  preferences: string | null
+): string {
   const locationContext = userCity
     ? `El consumidor se encuentra en la zona de ${userCity}. Si es relevante, prioriza establecimientos cercanos a esa zona.`
+    : ''
+
+  const preferencesContext = preferences
+    ? `PREFERENCIAS PERSISTENTES DEL CONSUMIDOR (indicadas previamente por él):
+${preferences}
+Ten en cuenta estas preferencias para personalizar tus recomendaciones. Si la petición actual del consumidor contradice una preferencia anterior, prioriza SIEMPRE la petición actual.`
     : ''
 
   const historyText = history
@@ -39,11 +99,12 @@ REGLAS FUNDAMENTALES:
 9. Cuando sea posible, sugiere qué buscar (por ejemplo: "busca restaurantes italianos con terraza en tu zona") en lugar de inventar nombres.
 10. No uses emojis.
 ${locationContext}
+${preferencesContext}
 
 CONVERSACIÓN ACTUAL:
 ${historyText}
 
-Responde al último mensaje del consumidor. Si la conversación acaba de empezar y el primer mensaje es ambiguo, pide información adicional.`
+Responde al último mensaje del consumidor. Ten en cuenta las preferencias persistentes cuando existan, pero respeta la petición actual. Si la conversación acaba de empezar y el primer mensaje es ambiguo, pide información adicional.`
 }
 
 serve(async (req) => {
@@ -78,7 +139,15 @@ serve(async (req) => {
 
     const fullHistory: ChatMessage[] = [...history, { role: 'user', content: trimmedMessage }]
 
-    const prompt = construirPrompt(fullHistory, typeof userCity === 'string' ? userCity : undefined)
+    // Obtener preferencias persistentes del usuario autenticado de forma segura.
+    const token = extraerBearer(req)
+    const preferences = await obtenerPreferencias(token)
+
+    const prompt = construirPrompt(
+      fullHistory,
+      typeof userCity === 'string' ? userCity : undefined,
+      preferences
+    )
 
     const geminiResponse = await fetch(GEMINI_URL, {
       method: 'POST',

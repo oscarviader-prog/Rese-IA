@@ -4,6 +4,7 @@ import { NewReview, UserBooking } from '../types';
 import { ReviewModal } from './ReviewModal';
 import { ReservationEmailModal } from './ReservationEmailModal';
 import { SearchBar, PlaceResult } from './SearchBar';
+import { ConsumerPreferences } from './ConsumerPreferences';
 import { useAuth } from '../context/AuthContext';
 import { getStoredBookings, saveBooking, cancelBooking } from '../lib/bookings';
 import {
@@ -195,6 +196,9 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
           </div>
         </PastelCard>
       )}
+
+      {/* 1.3 Consumer Preferences */}
+      <ConsumerPreferences userId={user?.id} />
 
       {/* 1.5 Mis Reservas en Vivo Card (Desplegable) */}
       <PastelCard variant="darker" className="border-2 border-cyan-500/40 p-0 overflow-hidden">
