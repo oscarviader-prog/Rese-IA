@@ -331,7 +331,7 @@ export const BusinessReportsSection: React.FC<BusinessReportsSectionProps> = ({
               value={frequency}
               onChange={(e) => handleChangeFrequency(e.target.value as ReportFrequency)}
               disabled={savingFrequency}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 disabled:opacity-50"
+              className="bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 disabled:opacity-50"
             >
               <option value="weekly">Semanal</option>
               <option value="biweekly">Quincenal</option>

@@ -115,7 +115,7 @@ export const BusinessMetricsDashboard: React.FC<BusinessMetricsDashboardProps> =
           <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
           <p className="text-sm">Cargando métricas...</p>
         </div>
-      ) : snapshots.length < 2 ? (
+      ) : snapshots.length === 0 ? (
         <div className="rounded-2xl bg-gray-100 p-6">
           <p className="text-sm text-gray-600">
             Estamos recopilando datos de tu negocio. En las próximas semanas verás la evolución
@@ -168,23 +168,32 @@ export const BusinessMetricsDashboard: React.FC<BusinessMetricsDashboardProps> =
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-6 shadow-md">
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                <Tooltip content={<CustomTooltip />} />
-                <Line
-                  type="monotone"
-                  dataKey="rating"
-                  stroke="#0d9488"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {snapshots.length >= 2 ? (
+            <div className="rounded-2xl bg-white p-6 shadow-md">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                  <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Line
+                    type="monotone"
+                    dataKey="rating"
+                    stroke="#0d9488"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="rounded-2xl bg-gray-50 p-6">
+              <p className="text-sm text-gray-600 text-center">
+                Necesitamos al menos 2 mediciones para mostrar la gráfica de evolución. Vuelve
+                pronto.
+              </p>
+            </div>
+          )}
         </>
       )}
     </div>

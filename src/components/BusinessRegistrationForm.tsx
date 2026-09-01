@@ -165,7 +165,7 @@ export const BusinessRegistrationForm: React.FC<BusinessRegistrationFormProps> =
                 onChange={(e) => setCif(e.target.value)}
                 placeholder="Ej: B12345678"
                 required
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+                className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
               />
               {cifNormalizado.length > 0 && (
                 <span className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -191,7 +191,7 @@ export const BusinessRegistrationForm: React.FC<BusinessRegistrationFormProps> =
               placeholder="Nombre legal de la empresa"
               required
               minLength={3}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+              className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
             />
           </div>
 
@@ -205,7 +205,7 @@ export const BusinessRegistrationForm: React.FC<BusinessRegistrationFormProps> =
               value={nombreComercial}
               onChange={(e) => setNombreComercial(e.target.value)}
               placeholder="Nombre con el que el público te conoce"
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+              className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
             />
           </div>
 
@@ -235,7 +235,7 @@ export const BusinessRegistrationForm: React.FC<BusinessRegistrationFormProps> =
               onChange={(e) => setCiudad(e.target.value)}
               placeholder="Ciudad donde opera tu negocio"
               required
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+              className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
             />
           </div>
 
@@ -252,7 +252,7 @@ export const BusinessRegistrationForm: React.FC<BusinessRegistrationFormProps> =
               required
               pattern="\d{5}"
               maxLength={5}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+              className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
             />
           </div>
 
@@ -267,7 +267,7 @@ export const BusinessRegistrationForm: React.FC<BusinessRegistrationFormProps> =
               onChange={(e) => setProvincia(e.target.value)}
               placeholder="Provincia donde opera tu negocio"
               required
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+              className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
             />
           </div>
 
@@ -282,7 +282,7 @@ export const BusinessRegistrationForm: React.FC<BusinessRegistrationFormProps> =
               onChange={(e) => setPais(e.target.value)}
               placeholder="País donde opera tu negocio"
               required
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+              className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
             />
           </div>
 
@@ -296,7 +296,7 @@ export const BusinessRegistrationForm: React.FC<BusinessRegistrationFormProps> =
               value={emailFacturacion}
               onChange={(e) => setEmailFacturacion(e.target.value)}
               placeholder="facturacion@tuempresa.com"
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+              className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
             />
           </div>
 
