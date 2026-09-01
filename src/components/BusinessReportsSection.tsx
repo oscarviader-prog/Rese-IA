@@ -313,7 +313,10 @@ export const BusinessReportsSection: React.FC<BusinessReportsSectionProps> = ({
 
   return (
     <section className="mt-6 rounded-2xl bg-white p-6 shadow-md">
-      <h3 className="text-lg font-semibold text-gray-900 mb-1">Mis informes ({reports.length})</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
+        <FileText className="w-5 h-5 text-teal-600" />
+        Mis informes ({reports.length})
+      </h3>
       <p className="text-sm text-gray-500 mb-4">
         Se generan automáticamente según la frecuencia elegida. También puedes generar uno ahora
         mismo.

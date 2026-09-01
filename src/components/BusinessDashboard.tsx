@@ -9,6 +9,7 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  BadgeCheck,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -380,49 +381,55 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
       <div className="min-h-screen bg-[#F5F6F8] px-4 py-12">
         <div className="max-w-6xl mx-auto">
           {dashboardHeader}
-          {/* Card verde de verificación */}
-          <div className="rounded-2xl border border-green-300 bg-green-50 p-8 shadow-md">
-            <div className="flex items-start gap-4">
-              <CheckCircle className="w-8 h-8 text-green-600 shrink-0" />
-              <div>
-                <h2 className="text-xl font-semibold text-green-900 mb-2">Verificada por ReseñIA</h2>
-                <p className="text-sm text-green-800">
-                  Tu empresa está verificada en ReseñIA. Ya puedes gestionar tu negocio.
-                </p>
+
+          <div className="space-y-8">
+            {/* Card verde de verificación */}
+            <div className="rounded-2xl border border-green-300 bg-green-50 p-8 shadow-md">
+              <div className="flex items-start gap-4">
+                <CheckCircle className="w-8 h-8 text-green-600 shrink-0" />
+                <div>
+                  <h2 className="text-xl font-semibold text-green-900 mb-2 inline-flex items-center gap-2">
+                    <BadgeCheck className="w-6 h-6 text-green-600" />
+                    Verificada por ReseñIA
+                  </h2>
+                  <p className="text-sm text-green-800">
+                    Tu empresa está verificada en ReseñIA. Ya puedes gestionar tu negocio.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Sección colapsable: Datos de tu negocio */}
-          <div className="mt-6 rounded-2xl bg-white p-6 shadow-md">
-            <button
-              type="button"
-              onClick={() => setIsDataExpanded((prev) => !prev)}
-              className="flex w-full items-center justify-between text-left"
-              aria-expanded={isDataExpanded}
-            >
-              <h3 className="text-lg font-semibold text-gray-900">Datos de tu negocio</h3>
-              {isDataExpanded ? (
-                <ChevronUp className="w-5 h-5 text-gray-500 shrink-0" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-500 shrink-0" />
+            {/* Sección colapsable: Datos de tu negocio */}
+            <div className="rounded-2xl bg-white p-6 shadow-md">
+              <button
+                type="button"
+                onClick={() => setIsDataExpanded((prev) => !prev)}
+                className="flex w-full items-center justify-between text-left"
+                aria-expanded={isDataExpanded}
+              >
+                <h3 className="text-lg font-semibold text-gray-900">Datos de tu negocio</h3>
+                {isDataExpanded ? (
+                  <ChevronUp className="w-5 h-5 text-gray-500 shrink-0" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-500 shrink-0" />
+                )}
+              </button>
+              {isDataExpanded && (
+                <BusinessDataList business={business} onUpdated={handleBusinessUpdated} />
               )}
-            </button>
-            {isDataExpanded && (
-              <BusinessDataList business={business} onUpdated={handleBusinessUpdated} />
-            )}
-          </div>
+            </div>
 
-          {/* Evolución del rating (ancho completo) */}
-          <BusinessMetricsDashboard businessId={business.id} />
+            {/* Evolución del rating (ancho completo) */}
+            <BusinessMetricsDashboard businessId={business.id} />
 
-          {/* Alertas + Informes en 2 columnas (1 columna en móvil) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <BusinessAlertsSection businessId={business.id} />
-            <BusinessReportsSection
-              businessId={business.id}
-              initialFrequency={business.report_frequency || 'weekly'}
-            />
+            {/* Alertas + Informes en 2 columnas (1 columna en móvil) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <BusinessAlertsSection businessId={business.id} />
+              <BusinessReportsSection
+                businessId={business.id}
+                initialFrequency={business.report_frequency || 'weekly'}
+              />
+            </div>
           </div>
         </div>
       </div>
