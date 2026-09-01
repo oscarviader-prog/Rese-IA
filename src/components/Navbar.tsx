@@ -1,24 +1,17 @@
 import React, { useState } from 'react';
 import { ViewState } from '../types';
-import { ArrowLeft, Search, ShieldCheck, Building2, User, LogIn, UserPlus, LogOut, Settings } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Building2, User, LogIn, UserPlus, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ProfileModal } from './ProfileModal';
-import { SearchBar, PlaceResult } from './SearchBar';
 
 interface NavbarProps {
   currentView: ViewState;
   onNavigate: (view: ViewState) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  onSelectPlace?: (placeId: string, place?: PlaceResult) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentView,
   onNavigate,
-  searchQuery,
-  setSearchQuery,
-  onSelectPlace,
 }) => {
   const { user, logout } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -46,20 +39,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 RESEÑ<span className="text-[#00f2ff] drop-shadow-[0_0_10px_rgba(0,242,255,0.7)]">IA</span>
               </h1>
             </div>
-            <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded border border-white/20 text-[10px] font-mono-code font-bold bg-white/5 text-cyan-300">
-              BETA PÚBLICA
-            </span>
           </div>
-
-          {/* View Switcher & Search (Consumer) */}
-          {(currentView === 'consumer' || currentView === 'consumer_chat') && (
-            <div className="relative w-full sm:w-96 md:w-[480px] my-1 sm:my-0">
-              <SearchBar 
-                onSelectPlace={(id, place) => onSelectPlace?.(id, place)}
-                placeholder="Buscar en Google Places..."
-              />
-            </div>
-          )}
 
           {/* Right Nav Actions */}
           <div className="flex items-center gap-2.5 flex-wrap justify-end">

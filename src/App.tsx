@@ -94,9 +94,6 @@ function MainApp() {
         <Navbar
           currentView={currentView}
           onNavigate={handleNavigate}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          onSelectPlace={handleSelectPlace}
         />
 
         <main className="flex-1">
