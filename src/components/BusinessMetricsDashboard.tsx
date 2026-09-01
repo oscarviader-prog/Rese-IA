@@ -106,6 +106,9 @@ export const BusinessMetricsDashboard: React.FC<BusinessMetricsDashboardProps> =
     reviews: s.user_ratings_total,
   }));
 
+  const isPositiveChange = ratingChange !== null && ratingChange > 0;
+  const isNegativeChange = ratingChange !== null && ratingChange < 0;
+
   return (
     <div className="mt-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Evolución de tu negocio</h3>
@@ -125,30 +128,50 @@ export const BusinessMetricsDashboard: React.FC<BusinessMetricsDashboardProps> =
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div className="rounded-2xl bg-white p-6 shadow-md">
+            <div className="rounded-2xl bg-white p-6 shadow-md border-t-4 border-amber-400">
               <div className="flex items-center gap-2 text-gray-500 mb-2">
-                <Star className="w-4 h-4" />
+                <span className="p-2 rounded-full bg-amber-100">
+                  <Star className="w-6 h-6 text-amber-600" />
+                </span>
                 <span className="text-sm font-medium">Rating actual</span>
               </div>
-              <p className="text-2xl font-bold text-gray-900">{latest.rating.toFixed(1)}</p>
+              <p className="text-3xl font-bold text-gray-900">{latest.rating.toFixed(1)}</p>
             </div>
 
-            <div className="rounded-2xl bg-white p-6 shadow-md">
+            <div
+              className={`rounded-2xl bg-white p-6 shadow-md border-t-4 ${
+                isPositiveChange
+                  ? 'border-green-400'
+                  : isNegativeChange
+                  ? 'border-red-400'
+                  : 'border-gray-300'
+              }`}
+            >
               <div className="flex items-center gap-2 text-gray-500 mb-2">
-                {ratingChange !== null && ratingChange > 0 ? (
-                  <ArrowUp className="w-4 h-4 text-green-600" />
-                ) : ratingChange !== null && ratingChange < 0 ? (
-                  <ArrowDown className="w-4 h-4 text-red-600" />
-                ) : (
-                  <Minus className="w-4 h-4" />
-                )}
+                <span
+                  className={`p-2 rounded-full ${
+                    isPositiveChange
+                      ? 'bg-green-100'
+                      : isNegativeChange
+                      ? 'bg-red-100'
+                      : 'bg-gray-100'
+                  }`}
+                >
+                  {isPositiveChange ? (
+                    <ArrowUp className="w-6 h-6 text-green-600" />
+                  ) : isNegativeChange ? (
+                    <ArrowDown className="w-6 h-6 text-red-600" />
+                  ) : (
+                    <Minus className="w-6 h-6 text-gray-500" />
+                  )}
+                </span>
                 <span className="text-sm font-medium">Cambio vs mes anterior</span>
               </div>
               <p
-                className={`text-2xl font-bold ${
-                  ratingChange !== null && ratingChange > 0
+                className={`text-3xl font-bold ${
+                  isPositiveChange
                     ? 'text-green-600'
-                    : ratingChange !== null && ratingChange < 0
+                    : isNegativeChange
                     ? 'text-red-600'
                     : 'text-gray-900'
                 }`}
@@ -159,12 +182,14 @@ export const BusinessMetricsDashboard: React.FC<BusinessMetricsDashboardProps> =
               </p>
             </div>
 
-            <div className="rounded-2xl bg-white p-6 shadow-md">
+            <div className="rounded-2xl bg-white p-6 shadow-md border-t-4 border-teal-400">
               <div className="flex items-center gap-2 text-gray-500 mb-2">
-                <MessageSquare className="w-4 h-4" />
+                <span className="p-2 rounded-full bg-teal-100">
+                  <MessageSquare className="w-6 h-6 text-teal-600" />
+                </span>
                 <span className="text-sm font-medium">Total reseñas</span>
               </div>
-              <p className="text-2xl font-bold text-gray-900">{latest.user_ratings_total}</p>
+              <p className="text-3xl font-bold text-gray-900">{latest.user_ratings_total}</p>
             </div>
           </div>
 
