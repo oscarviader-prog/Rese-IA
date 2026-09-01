@@ -12,7 +12,6 @@ import { Footer } from './components/Footer';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BusinessRegistrationForm } from './components/BusinessRegistrationForm';
 import { BusinessDashboard } from './components/BusinessDashboard';
-import { ConsumerChatView } from './components/ConsumerChatView';
 import { PlaceResult } from './components/SearchBar';
 import { supabase } from './lib/supabase';
 
@@ -107,12 +106,7 @@ function MainApp() {
               setSearchQuery={setSearchQuery} 
               onSelectPlace={handleSelectPlace}
               selectedPlace={selectedPlace}
-              onOpenChat={() => setCurrentView('consumer_chat')}
             />
-          )}
-
-          {currentView === 'consumer_chat' && (
-            <ConsumerChatView onBack={() => setCurrentView('consumer')} />
           )}
 
           {currentView === 'login' && (
