@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Star, MessageSquare, ArrowUp, ArrowDown, Minus, Loader2 } from 'lucide-react';
+import { Star, MessageSquare, ArrowUp, ArrowDown, Minus, Loader2, TrendingUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface BusinessMetricsDashboardProps {
@@ -119,11 +119,18 @@ export const BusinessMetricsDashboard: React.FC<BusinessMetricsDashboardProps> =
           <p className="text-sm">Cargando métricas...</p>
         </div>
       ) : snapshots.length === 0 ? (
-        <div className="rounded-2xl bg-gray-100 p-6">
-          <p className="text-sm text-gray-600">
-            Estamos recopilando datos de tu negocio. En las próximas semanas verás la evolución
-            completa.
-          </p>
+        <div className="rounded-2xl bg-gradient-to-br from-teal-50 to-blue-50 p-8 flex flex-col items-center justify-center gap-4 text-center border border-teal-100">
+          <div className="w-16 h-16 rounded-full bg-teal-100 flex items-center justify-center">
+            <TrendingUp className="w-8 h-8 text-teal-600" />
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 mb-1">
+              Aún no tenemos datos suficientes
+            </h4>
+            <p className="text-sm text-gray-600 max-w-md">
+              Estamos recopilando información de tu negocio. En las próximas semanas verás la evolución completa aquí.
+            </p>
+          </div>
         </div>
       ) : (
         <>

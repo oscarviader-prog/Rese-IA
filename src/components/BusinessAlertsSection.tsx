@@ -223,11 +223,18 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
           {error}
         </div>
       ) : alerts.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 text-gray-500 py-12 text-center">
-          <Bell className="w-12 h-12 text-gray-300" />
-          <p className="text-sm max-w-sm">
-            No tienes alertas por ahora. Te avisaremos cuando haya novedades sobre tu negocio.
-          </p>
+        <div className="rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 p-8 flex flex-col items-center justify-center gap-4 text-center border border-gray-100">
+          <div className="w-16 h-16 rounded-full bg-teal-100 flex items-center justify-center">
+            <Bell className="w-8 h-8 text-teal-600" />
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 mb-1">
+              Todo tranquilo por aquí
+            </h4>
+            <p className="text-sm text-gray-600 max-w-md">
+              No tienes alertas pendientes. Te avisaremos cuando haya novedades sobre tu negocio.
+            </p>
+          </div>
         </div>
       ) : (
         <ul className="space-y-4">
