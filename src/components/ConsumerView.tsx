@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { PastelCard } from './PastelCard';
 import { NewReview, UserBooking } from '../types';
 import { ReviewModal } from './ReviewModal';
 import { ReservationEmailModal } from './ReservationEmailModal';
@@ -10,7 +9,9 @@ import { ImportantDatesSection } from './ImportantDatesSection';
 import { AlertSettingsSection } from './AlertSettingsSection';
 import { FavoriteButton } from './FavoriteButton';
 import { ConsumerChatFloating } from './ConsumerChatFloating';
+import { GooglePlaceDetails, GooglePlaceReview } from './PlaceDetailModal';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 import { getStoredBookings, saveBooking, cancelBooking } from '../lib/bookings';
 import { getConsumerImportantDates, isReminderDue, nextOccurrence, ImportantDate } from '../lib/importantDates';
 import { shouldNotify } from '../lib/consumerAlerts';
@@ -19,23 +20,20 @@ import {
   PlusCircle,
   CheckCircle2,
   MapPin,
-  Building2,
+  Phone,
+  Globe,
   MessageSquareText,
   Calendar,
-  ChevronDown,
-  ChevronUp,
   Mail,
   Loader2,
   Eye,
   Send,
-  XCircle,
-  Clock,
-  Users,
-  BookmarkCheck,
   Trash2,
   AlertTriangle,
-  Bot,
   LogIn,
+  Building2,
+  Star,
+  HelpCircle,
 } from 'lucide-react';
 
 interface ConsumerViewProps {
@@ -55,23 +53,23 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
 }) => {
   const { user } = useAuth();
 
-  // True solo cuando existe una sesión válida de consumidor autenticado
-  const isConsumerAuthed = !!user && user.role === 'consumer';
+  // Regla de acceso: cualquier usuario autenticado (consumidor o empresa) tiene
+  // acceso a las funciones privadas de consumidor. Usuario no registrado, no.
+  const isConsumerAuthed = !!user;
 
   // Review Modal state
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [userReviews, setUserReviews] = useState<NewReview[]>([]);
 
-  // Reservation Accordion state
-  const [isReserveOpen, setIsReserveOpen] = useState(false);
+  // Reservation state
   const [reserveGuests, setReserveGuests] = useState('2 personas');
   const [reserveTime, setReserveTime] = useState('20:30');
   const [reserveDate, setReserveDate] = useState('Hoy');
-  const [reserveEmail, setReserveEmail] = useState(user?.email || 'lucia.garcia@gmail.com');
+  const [reserveEmail, setReserveEmail] = useState(user?.email || '');
   const [bookingCode, setBookingCode] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [reserveConfirmed, setReserveConfirmed] = useState(false);
-  
+
   // Active modal booking state
   const [activeBookingForEmail, setActiveBookingForEmail] = useState<UserBooking | null>(null);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
@@ -79,12 +77,16 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
 
   // Stored Bookings List
   const [userBookings, setUserBookings] = useState<UserBooking[]>([]);
-  const [isBookingsSectionOpen, setIsBookingsSectionOpen] = useState(false);
 
   // Fechas importantes: recordatorios a 7 días
   const [upcomingReminders, setUpcomingReminders] = useState<ImportantDate[]>([]);
   const [remindersAllowed, setRemindersAllowed] = useState(true);
   const [autoOpen, setAutoOpen] = useState<{ dateId: string; nonce: number } | null>(null);
+
+  // Detalles enriquecidos del establecimiento seleccionado (teléfono, web, reseñas...)
+  const [placeDetails, setPlaceDetails] = useState<GooglePlaceDetails | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState(false);
 
   useEffect(() => {
     setUserBookings(getStoredBookings());
@@ -97,9 +99,6 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
     }
     let active = true;
     (async () => {
-      // La alerta "recordatorio de fecha importante" se respeta: si el consumidor
-      // la tiene inactiva, en "No molestar" o sin el canal in_app, no se muestra
-      // el recordatorio in-app (requisito 5).
       const { decision } = await shouldNotify('important_date_reminder');
       if (!active) return;
       const allowed = decision.shouldNotify && decision.channels.includes('in_app');
@@ -128,6 +127,43 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
     }
   }, [user]);
 
+  // Carga los detalles reales del establecimiento al seleccionarlo para mostrar
+  // la información principal integrada (incluido el teléfono) debajo del buscador.
+  useEffect(() => {
+    let active = true;
+    if (!selectedPlace?.id) {
+      setPlaceDetails(null);
+      setDetailsError(false);
+      return;
+    }
+    setDetailsLoading(true);
+    setDetailsError(false);
+    (async () => {
+      try {
+        const res = await supabase.functions.invoke('get-place-details', {
+          body: { placeId: selectedPlace.id },
+        });
+        if (!active) return;
+        if (res.error || !res.data) {
+          setDetailsError(true);
+          setPlaceDetails(null);
+        } else {
+          setPlaceDetails(res.data as GooglePlaceDetails);
+        }
+      } catch (err) {
+        console.error('Error cargando detalles del establecimiento:', err);
+        if (!active) return;
+        setDetailsError(true);
+        setPlaceDetails(null);
+      } finally {
+        if (active) setDetailsLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [selectedPlace?.id]);
+
   const handleAddReview = (newReview: NewReview) => {
     setUserReviews((prev) => [newReview, ...prev]);
   };
@@ -139,8 +175,8 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
     const generatedCode = `#RSV-${Math.floor(1000 + Math.random() * 9000)}`;
     setBookingCode(generatedCode);
 
-    const currentPlaceName = selectedPlace?.displayName?.text || 'Establecimiento Seleccionado';
-    const currentPlaceAddress = selectedPlace?.formattedAddress || 'Sin dirección';
+    const currentPlaceName = placeName;
+    const currentPlaceAddress = placeAddress;
 
     const newBookingData = saveBooking({
       id: generatedCode,
@@ -151,10 +187,9 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
       guests: reserveGuests,
       date: reserveDate,
       time: reserveTime,
-      status: 'confirmada'
+      status: 'confirmada',
     });
 
-    // Simulate async email dispatch
     setTimeout(() => {
       setIsSendingEmail(false);
       setReserveConfirmed(true);
@@ -168,7 +203,7 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
     const updated = cancelBooking(id);
     setUserBookings(updated);
 
-    const cancelledItem = updated.find(b => b.id === id);
+    const cancelledItem = updated.find((b) => b.id === id);
     if (cancelledItem) {
       setActiveBookingForEmail(cancelledItem);
       setIsEmailModalOpen(true);
@@ -180,360 +215,353 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
     setIsEmailModalOpen(true);
   };
 
-  const placeName = selectedPlace?.displayName?.text || 'Establecimiento Seleccionado';
-  const placeAddress = selectedPlace?.formattedAddress || 'Sin dirección';
-  const placeCategory = selectedPlace?.primaryTypeDisplayName?.text || 'Negocio';
-  const googleRating = selectedPlace?.rating;
-  const ratingCount = selectedPlace?.userRatingCount;
+  const placeName = placeDetails?.displayName?.text || selectedPlace?.displayName?.text || 'Establecimiento Seleccionado';
+  const placeAddress = placeDetails?.formattedAddress || selectedPlace?.formattedAddress || 'Sin dirección';
+  const placeCategory = placeDetails?.primaryTypeDisplayName?.text || selectedPlace?.primaryTypeDisplayName?.text || 'Negocio';
+  const googleRating = placeDetails?.rating ?? selectedPlace?.rating;
+  const ratingCount = placeDetails?.userRatingCount ?? selectedPlace?.userRatingCount;
+  // Teléfono: se toma del campo correcto de Google Places. Si no existe, se
+  // muestra honestamente "Teléfono no disponible". Nunca se muestra el Place ID.
+  const phoneNumber = placeDetails?.internationalPhoneNumber;
+  const hasPhone = !!phoneNumber && phoneNumber.trim().length > 0;
+  const website = placeDetails?.websiteUri;
+  const reviews = (placeDetails?.reviews || []) as GooglePlaceReview[];
+
+  const businessCard =
+    'bg-white rounded-2xl shadow-md';
+  const sectionHeader = 'text-sm font-semibold text-gray-900';
+  const mutedText = 'text-sm text-gray-500';
+  const bodyText = 'text-sm text-gray-900';
+  const primaryBtn =
+    'inline-flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
-    <div className="w-full bg-white text-slate-900">
+    <div className="w-full min-h-screen bg-[#F5F6F8]">
       <div className="py-8 px-4 sm:px-6 max-w-5xl mx-auto space-y-6">
 
-        {/* 1. Interactive AI Search Card */}
-        <PastelCard variant="accent" className="relative overflow-visible shadow-[0_0_25px_rgba(0,242,255,0.1)]">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-cyan-800 text-cyan-100 text-[10px] font-mono-code font-bold tracking-wider uppercase border border-cyan-400 shadow-sm">
-                ✨ RESEÑIA BUSCADOR INTELIGENTE
-              </span>
-              <h3 className="text-lg font-display font-bold text-slate-900">
-                ¿Qué negocio o lugar buscas hoy?
-              </h3>
-            </div>
-            <span className="text-[11px] font-mono-code text-slate-600">
-              Google Places API en tiempo real
+        {/* 1. Búsqueda */}
+        <section className="rounded-2xl bg-white p-6 shadow-md">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200 text-[11px] font-semibold tracking-wide uppercase">
+              <Sparkles className="w-3.5 h-3.5" />
+              ReseñIA Buscador
             </span>
+            <h3 className="text-lg font-semibold text-gray-900">
+              ¿Qué negocio o lugar buscas?
+            </h3>
           </div>
-
-          <p className="text-xs font-sans-ui text-slate-700 mb-3">
+          <p className={mutedText}>
             Busca cualquier establecimiento real para consultar su puntuación y detalles.
           </p>
-
-          <div className="mb-2">
-            <SearchBar 
+          <div className="mt-3">
+            <SearchBar
               onSelectPlace={(placeId, place) => {
                 if (onSelectPlace) onSelectPlace(placeId, place);
               }}
-              placeholder="Buscar en Google Places (ej: restaurante, farmacia, pizza, hotel...)"
+              placeholder="Buscar negocio, restaurante, farmacia, pizza, hotel..."
             />
           </div>
-        </PastelCard>
+        </section>
 
-        {/* 2. Main Detailed Card for Selected Place (resultado debajo del buscador) */}
+        {/* 2. Ficha integrada del establecimiento seleccionado (debajo del buscador) */}
         {selectedPlace ? (
-          <>
-            <PastelCard className="border-2 border-cyan-400/80">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <h2 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900">
-                      {placeName}
-                    </h2>
-                    <span className="px-2.5 py-0.5 rounded-full bg-cyan-800 text-cyan-100 border border-cyan-400 text-[11px] font-mono-code font-bold flex items-center gap-1 shadow-sm">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-cyan-300" />
-                      GOOGLE PLACES
-                    </span>
-                  </div>
-                  <p className="text-xs font-mono-code text-slate-700 flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-slate-600" />
-                    {placeAddress} · {placeCategory}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                  <FavoriteButton place={selectedPlace} />
-                  {isConsumerAuthed ? (
-                    <button
-                      onClick={() => setIsReviewModalOpen(true)}
-                      className="px-3.5 py-2 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white text-xs font-mono-code font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
-                    >
-                      <PlusCircle className="w-4 h-4" />
-                      ✍️ Escribe tu reseña
-                    </button>
-                  ) : (
-                    <span className="self-start px-3.5 py-2 rounded-xl bg-slate-200 text-slate-600 border border-slate-300 text-xs font-mono-code font-bold shrink-0">
-                      Inicia sesión para reseñar
+          <section className="rounded-2xl bg-white p-6 shadow-md">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                    {placeName}
+                  </h2>
+                  {placeCategory && (
+                    <span className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                      {placeCategory}
                     </span>
                   )}
                 </div>
+                <p className={mutedText + ' flex items-center gap-1'}>
+                  <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+                  {placeAddress}
+                </p>
               </div>
 
-              {/* Dos Cajas Comparativas */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                {/* Box 1: NOTA MOSTRADA */}
-                <div className="p-4 rounded-xl bg-slate-200/90 border border-slate-300 text-slate-800 flex flex-col justify-between">
-                  <div className="text-[11px] font-mono-code font-bold uppercase text-slate-600 tracking-wider mb-2">
-                    NOTA MOSTRADA (Google Places)
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-display font-bold text-slate-800">
-                      {googleRating !== undefined ? googleRating : 'N/A'}
-                    </span>
-                    <div className="flex items-center text-amber-500 text-lg">
-                      ★ ★ ★ ★ ★
-                    </div>
-                  </div>
-                  <span className="text-[11px] font-mono-code text-slate-500 mt-2">
-                    {ratingCount !== undefined 
-                      ? `${ratingCount.toLocaleString('es-ES')} reseñas registradas en Google`
-                      : 'Sin opiniones registradas'}
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <FavoriteButton
+                  place={{
+                    id: selectedPlace.id,
+                    displayName: placeDetails?.displayName || selectedPlace.displayName,
+                    formattedAddress: placeDetails?.formattedAddress || selectedPlace.formattedAddress,
+                    rating: googleRating,
+                    userRatingCount: ratingCount,
+                    primaryTypeDisplayName: placeDetails?.primaryTypeDisplayName || selectedPlace.primaryTypeDisplayName,
+                  }}
+                />
+                {isConsumerAuthed ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsReviewModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium text-sm py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    Escribe tu reseña
+                  </button>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 border border-gray-200 text-gray-400 text-sm py-2 px-4 rounded-lg">
+                    <LogIn className="w-4 h-4" />
+                    Inicia sesión para reseñar
                   </span>
+                )}
+              </div>
+            </div>
+
+            {/* Valoración + contacto */}
+            {detailsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-gray-500 py-2">
+                <Loader2 className="w-4 h-4 animate-spin text-teal-600" />
+                Cargando detalles del establecimiento...
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm py-2 border-y border-gray-100">
+                <div className="flex items-center gap-1.5">
+                  <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                  <span className="font-bold text-gray-900">
+                    {googleRating !== undefined ? googleRating : 'Sin valoración'}
+                  </span>
+                  {ratingCount !== undefined && (
+                    <span className="text-gray-400">
+                      ({ratingCount.toLocaleString('es-ES')} reseñas)
+                    </span>
+                  )}
                 </div>
 
-                {/* Box 2: NOTA REAL PONDERADA */}
-                <div className="p-4 rounded-xl bg-slate-900 text-white border-2 border-cyan-400/50 shadow-md flex flex-col justify-between">
-                  <div className="text-[11px] font-mono-code font-bold uppercase text-cyan-200 tracking-wider mb-2">
-                    NOTA REAL PONDERADA (ReseñIA)
-                  </div>
-                  <div className="flex items-baseline gap-3 my-1">
-                    <span className="text-xl font-display font-bold text-cyan-300">
-                      Próximamente
+                {hasPhone ? (
+                  <a
+                    href={`tel:${phoneNumber}`}
+                    className="flex items-center gap-1.5 text-gray-700 hover:text-teal-700 transition-colors"
+                  >
+                    <Phone className="w-4 h-4 text-teal-600 shrink-0" />
+                    {phoneNumber}
+                  </a>
+                ) : (
+                  !detailsError && (
+                    <span className="flex items-center gap-1.5 text-gray-400">
+                      <Phone className="w-4 h-4 text-gray-300 shrink-0" />
+                      Teléfono no disponible
                     </span>
-                  </div>
-                  <span className="text-[11px] font-mono-code text-cyan-200/70 mt-2">
-                    El análisis ponderado anti-bot se calculará en la siguiente versión
+                  )
+                )}
+
+                {website && (
+                  <a
+                    href={website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-teal-700 hover:underline"
+                  >
+                    <Globe className="w-4 h-4 shrink-0" />
+                    Sitio web
+                  </a>
+                )}
+
+                {detailsError && (
+                  <span className="flex items-center gap-1.5 text-gray-400 text-xs">
+                    <HelpCircle className="w-4 h-4 text-gray-300 shrink-0" />
+                    No se pudieron completar los detalles del establecimiento.
                   </span>
-                </div>
+                )}
               </div>
-            </PastelCard>
+            )}
 
-            {/* 3. Community User Reviews */}
-            <PastelCard variant="darker">
-              <div className="flex items-center justify-between mb-3 border-b border-sky-300 pb-2">
-                <h4 className="text-xs font-mono-code font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                  <MessageSquareText className="w-4 h-4 text-cyan-800" />
-                  Reseñas aportadas por la comunidad ({userReviews.length})
-                </h4>
-              </div>
-
-              {userReviews.length === 0 ? (
-                <p className="text-xs font-mono-code text-slate-500 italic py-3 text-center">
-                  No hay reseñas locales registradas aún para este negocio. ¡Sé el primero en aportar una!
+            {/* Reseñas de Google */}
+            <div className="mt-5">
+              <h4 className={sectionHeader + ' flex items-center gap-2 mb-3'}>
+                <MessageSquareText className="w-4 h-4 text-teal-600" />
+                Reseñas ({reviews.length + userReviews.length})
+              </h4>
+              {reviews.length === 0 && userReviews.length === 0 ? (
+                <p className="text-sm text-gray-400 italic">
+                  No hay reseñas disponibles para este establecimiento. ¡Sé el primero en aportar una!
                 </p>
               ) : (
-                <div className="space-y-2.5">
+                <div className="space-y-3">
                   {userReviews.map((rev, idx) => (
-                    <div 
-                      key={idx} 
-                      className="p-3.5 rounded-xl border border-sky-300 bg-white/90 text-xs text-slate-800"
-                    >
+                    <div key={`local-${idx}`} className="p-4 rounded-xl border border-gray-200 bg-gray-50">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold font-mono-code text-slate-900">{rev.author}</span>
+                        <span className="text-sm font-semibold text-gray-900">{rev.author}</span>
                         <div className="flex items-center gap-2">
                           <span className="text-amber-500 font-bold">{"★".repeat(rev.rating)}</span>
-                          <span className="text-[10px] text-slate-400 font-mono-code">{rev.date || 'Reciente'}</span>
+                          <span className="text-xs text-gray-400">{rev.date || 'Reciente'}</span>
                         </div>
                       </div>
-                      <p className="font-sans-ui text-slate-800 leading-relaxed">{rev.comment}</p>
+                      <p className="text-sm text-gray-700 leading-relaxed">{rev.comment}</p>
+                    </div>
+                  ))}
+                  {reviews.map((rev, idx) => (
+                    <div key={`google-${idx}`} className="p-4 rounded-xl border border-gray-200 bg-white">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-semibold text-gray-900">
+                          {rev.authorAttribution?.displayName || 'Usuario de Google'}
+                        </span>
+                        <span className="text-amber-500 font-bold">{"★".repeat(rev.rating || 1)}</span>
+                      </div>
+                      <p className="text-sm text-gray-700 leading-relaxed">
+                        {rev.text?.text || 'Sin comentario de texto.'}
+                      </p>
                     </div>
                   ))}
                 </div>
               )}
-            </PastelCard>
+            </div>
 
-            {/* 4. Reservar Mesa Accordion */}
+            {/* Reservar */}
             {isConsumerAuthed ? (
-              <PastelCard variant="darker" className="p-0 overflow-hidden">
-                <button
-                  onClick={() => setIsReserveOpen(!isReserveOpen)}
-                  className="w-full p-5 flex items-center justify-between text-left hover:bg-sky-200/50 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-cyan-700 text-white">
-                      <Calendar className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-display font-bold text-slate-900">
-                        Reservar en {placeName}
-                      </h3>
-                      <p className="text-xs font-mono-code text-slate-600">
-                        Solicitud directa · sin comisión
-                      </p>
-                    </div>
-                  </div>
-                  <div className="p-1.5 rounded-lg bg-white/80 text-slate-700 border border-sky-300">
-                    {isReserveOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                  </div>
-                </button>
-
-                {isReserveOpen && (
-                  <div className="p-5 border-t border-sky-300 bg-white/90 space-y-4 animate-in slide-in-from-top-2 duration-200">
-                    {reserveConfirmed ? (
-                      <div className="p-4 rounded-xl bg-emerald-950 text-white border border-emerald-500/60 shadow-lg space-y-3">
-                        <div className="flex items-start gap-3">
-                          <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-bold text-sm text-emerald-300">
-                                ¡Reserva realizada con éxito!
-                              </h4>
-                              <span className="px-2 py-0.5 rounded-full bg-cyan-950 text-[#00f2ff] border border-cyan-500/40 text-[10px] font-mono-code font-bold">
-                                {bookingCode}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-300 leading-relaxed">
-                              {reserveGuests} para {reserveDate} a las {reserveTime} h en <strong className="text-white">{placeName}</strong>.
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-slate-900/90 border border-cyan-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                          <div className="flex items-center gap-2">
-                            <Mail className="w-4 h-4 text-[#00f2ff] shrink-0" />
-                            <div>
-                              <span className="text-slate-400 block text-[10px] font-mono-code uppercase">Correo enviado a</span>
-                              <span className="text-cyan-200 font-bold font-mono-code">{reserveEmail}</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                            <button
-                              type="button"
-                              onClick={() => setIsEmailModalOpen(true)}
-                              className="px-3 py-1.5 rounded-lg bg-cyan-900 hover:bg-cyan-800 text-[#00f2ff] border border-cyan-500/50 text-xs font-mono-code font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              Ver resguardo por email
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setReserveConfirmed(false);
-                              }}
-                              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono-code transition-all cursor-pointer"
-                            >
-                              Nueva reserva
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <form onSubmit={handleBookingSubmit} className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          <div>
-                            <label className="block text-[10px] font-mono-code font-bold text-slate-600 uppercase mb-1">
-                              Comensales
-                            </label>
-                            <select
-                              value={reserveGuests}
-                              onChange={(e) => setReserveGuests(e.target.value)}
-                              className="w-full bg-slate-100 text-slate-900 border border-sky-300 rounded-lg p-2.5 text-xs font-sans-ui focus:ring-1 focus:ring-cyan-600 focus:outline-none"
-                            >
-                              <option>1 persona</option>
-                              <option>2 personas</option>
-                              <option>4 personas</option>
-                              <option>6 personas</option>
-                              <option>8 personas</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-mono-code font-bold text-slate-600 uppercase mb-1">
-                              Fecha
-                            </label>
-                            <select
-                              value={reserveDate}
-                              onChange={(e) => setReserveDate(e.target.value)}
-                              className="w-full bg-slate-100 text-slate-900 border border-sky-300 rounded-lg p-2.5 text-xs font-sans-ui focus:ring-1 focus:ring-cyan-600 focus:outline-none"
-                            >
-                              <option>Hoy</option>
-                              <option>Mañana</option>
-                              <option>Este Viernes</option>
-                              <option>Este Sábado</option>
-                              <option>Próximo Domingo</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-mono-code font-bold text-slate-600 uppercase mb-1">
-                              Hora
-                            </label>
-                            <select
-                              value={reserveTime}
-                              onChange={(e) => setReserveTime(e.target.value)}
-                              className="w-full bg-slate-100 text-slate-900 border border-sky-300 rounded-lg p-2.5 text-xs font-sans-ui focus:ring-1 focus:ring-cyan-600 focus:outline-none"
-                            >
-                              <option>13:30</option>
-                              <option>14:00</option>
-                              <option>14:30</option>
-                              <option>20:30</option>
-                              <option>21:00</option>
-                              <option>21:30</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-[10px] font-mono-code font-bold text-slate-600 uppercase mb-1 flex items-center gap-1.5">
-                            <Mail className="w-3.5 h-3.5 text-cyan-600" />
-                            Correo para la confirmación de la reserva
-                          </label>
-                          <input
-                            type="email"
-                            required
-                            value={reserveEmail}
-                            onChange={(e) => setReserveEmail(e.target.value)}
-                            placeholder="ejemplo@correo.com"
-                            className="w-full bg-slate-100 text-slate-900 border border-sky-300 rounded-lg p-2.5 text-xs font-mono-code focus:ring-1 focus:ring-cyan-600 focus:outline-none placeholder-slate-400"
-                          />
-                          <span className="text-[10px] text-slate-500 mt-1 block">
-                            Se enviará un comprobante digital con el código de reserva a esta dirección.
+              <div className="mt-6">
+                <h3 className={sectionHeader + ' flex items-center gap-2 mb-3'}>
+                  <Calendar className="w-4 h-4 text-teal-600" />
+                  Reservar en {placeName}
+                </h3>
+                {reserveConfirmed ? (
+                  <div className="rounded-xl border border-green-200 bg-green-50 p-5 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-bold text-sm text-green-900">¡Reserva realizada con éxito!</h4>
+                          <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white text-[10px] font-semibold">
+                            {bookingCode}
                           </span>
                         </div>
-
-                        <div className="pt-1 flex items-center justify-end">
-                          <button
-                            type="submit"
-                            disabled={isSendingEmail}
-                            className="w-full sm:w-auto py-2.5 px-6 rounded-xl bg-cyan-700 hover:bg-cyan-800 disabled:opacity-50 text-white text-xs font-mono-code font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
-                          >
-                            {isSendingEmail ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Enviando correo de confirmación...
-                              </>
-                            ) : (
-                              <>
-                                <Send className="w-4 h-4" />
-                                Confirmar Reserva y Enviar Correo
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      </form>
-                    )}
+                        <p className="text-sm text-gray-700">
+                          {reserveGuests} para {reserveDate} a las {reserveTime} h en <strong>{placeName}</strong>.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm border-t border-green-100 pt-3">
+                      <span className="text-gray-600">
+                        Correo enviado a <strong className="text-teal-700">{reserveEmail}</strong>
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsEmailModalOpen(true)}
+                          className="inline-flex items-center gap-1.5 text-teal-700 hover:underline font-medium"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Ver resguardo por email
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReserveConfirmed(false)}
+                          className="inline-flex items-center gap-1.5 text-gray-500 hover:text-gray-700 font-medium"
+                        >
+                          Nueva reserva
+                        </button>
+                      </div>
+                    </div>
                   </div>
+                ) : (
+                  <form onSubmit={handleBookingSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Comensales</label>
+                        <select
+                          value={reserveGuests}
+                          onChange={(e) => setReserveGuests(e.target.value)}
+                          className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 text-sm"
+                        >
+                          <option>1 persona</option>
+                          <option>2 personas</option>
+                          <option>4 personas</option>
+                          <option>6 personas</option>
+                          <option>8 personas</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Fecha</label>
+                        <select
+                          value={reserveDate}
+                          onChange={(e) => setReserveDate(e.target.value)}
+                          className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 text-sm"
+                        >
+                          <option>Hoy</option>
+                          <option>Mañana</option>
+                          <option>Este Viernes</option>
+                          <option>Este Sábado</option>
+                          <option>Próximo Domingo</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Hora</label>
+                        <select
+                          value={reserveTime}
+                          onChange={(e) => setReserveTime(e.target.value)}
+                          className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 text-sm"
+                        >
+                          <option>13:30</option>
+                          <option>14:00</option>
+                          <option>14:30</option>
+                          <option>20:30</option>
+                          <option>21:00</option>
+                          <option>21:30</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Correo para la confirmación de la reserva
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={reserveEmail}
+                        onChange={(e) => setReserveEmail(e.target.value)}
+                        placeholder="ejemplo@correo.com"
+                        className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 text-sm"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={isSendingEmail}
+                        className={primaryBtn}
+                      >
+                        {isSendingEmail ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Enviando correo de confirmación...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            Confirmar Reserva y Enviar Correo
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
                 )}
-              </PastelCard>
+              </div>
             ) : (
-              <PastelCard variant="darker" className="p-0 overflow-hidden">
-                <div className="p-5 flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-slate-200 text-slate-500">
-                    <Calendar className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-display font-bold text-slate-900">
-                      Reservar en {placeName}
-                    </h3>
-                    <p className="text-xs font-sans-ui text-slate-600">
-                      Inicia sesión como consumidor para reservar mesa en este establecimiento.
-                    </p>
-                  </div>
+              <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-gray-100 text-gray-400">
+                  <Calendar className="w-5 h-5" />
                 </div>
-              </PastelCard>
+                <div>
+                  <h3 className={sectionHeader}>Reservar en {placeName}</h3>
+                  <p className={mutedText}>Inicia sesión para reservar mesa en este establecimiento.</p>
+                </div>
+              </div>
             )}
-          </>
+          </section>
         ) : (
-          <PastelCard className="border border-slate-800/80 py-12 text-center bg-slate-50 shadow-sm">
-            <Building2 className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-slate-800 mb-1">
+          <section className="rounded-2xl bg-white py-12 text-center shadow-md">
+            <Building2 className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-gray-800 mb-1">
               Selecciona un negocio para ver detalles
             </h3>
-            <p className="text-xs font-mono-code text-slate-500">
+            <p className="text-sm text-gray-500">
               Escribe en la barra de búsqueda para buscar cualquier lugar en Google Places.
             </p>
-          </PastelCard>
+          </section>
         )}
 
         {/* 3. Herramientas exclusivas del consumidor autenticado */}
@@ -541,12 +569,12 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
           <>
             {/* Recordatorio global: fechas importantes a 7 días */}
             {remindersAllowed && upcomingReminders.length > 0 && (
-              <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 shadow-sm">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <div className="p-1.5 rounded-lg bg-amber-200 text-amber-800">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-md">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 rounded-lg bg-amber-100 text-amber-800">
                     <AlertTriangle className="w-4 h-4" />
                   </div>
-                  <h3 className="text-sm font-mono-code font-bold uppercase tracking-wider text-amber-900">
+                  <h3 className="text-base font-semibold text-amber-900">
                     Recordatorio · tus fechas importantes están muy cerca
                   </h3>
                 </div>
@@ -556,13 +584,12 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
                     return (
                       <div
                         key={d.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-white border border-amber-300"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-white border border-amber-200"
                       >
                         <div>
-                          <p className="text-sm font-bold text-slate-900">{d.name}</p>
-                          <p className="text-xs font-mono-code text-slate-600">
-                            Falta 1 semana para {d.day}/
-                            {String(d.month).padStart(2, '0')}
+                          <p className="text-sm font-bold text-gray-900">{d.name}</p>
+                          <p className="text-sm text-gray-600">
+                            Falta 1 semana para {d.day}/{String(d.month).padStart(2, '0')}
                             {d.occurrence_type === 'unica' && d.year ? `/${d.year}` : ''} ·{' '}
                             {next
                               ? `se celebra el ${next.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`
@@ -572,7 +599,7 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
                         <button
                           type="button"
                           onClick={() => setAutoOpen({ dateId: d.id, nonce: Date.now() })}
-                          className="px-3.5 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-mono-code font-bold transition-all cursor-pointer shrink-0"
+                          className="bg-amber-600 hover:bg-amber-500 text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors cursor-pointer shrink-0"
                         >
                           Ver recomendaciones para esta ocasión
                         </button>
@@ -583,8 +610,8 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
               </div>
             )}
 
-            {/* Grid de herramientas: 2 columnas en escritorio, 1 en móvil */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Cuadrícula de herramientas: 2 columnas en escritorio, 1 en móvil */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <ConsumerPreferences userId={user?.id} />
               <ConsumerFavorites
                 userId={user?.id}
@@ -602,150 +629,130 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
               />
               <AlertSettingsSection userId={user?.id} />
 
-              {/* Mis Reservas en Vivo Card (Desplegable) */}
-              <PastelCard variant="darker" className="border-2 border-cyan-500/40 p-0 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setIsBookingsSectionOpen(!isBookingsSectionOpen)}
-                  className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-sky-200/50 transition-colors cursor-pointer select-none"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-cyan-950 text-[#00f2ff]">
-                      <BookmarkCheck className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-mono-code font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-                        Mis Reservas y Gestiones
-                        <span className="px-2 py-0.5 rounded-full bg-cyan-950 text-[#00f2ff] text-[11px] font-bold font-mono-code">
-                          {userBookings.length}
-                        </span>
-                      </h3>
-                      <p className="text-[11px] font-mono-code text-slate-600">
-                        {isBookingsSectionOpen ? 'Haz clic para plegar el panel' : 'Haz clic para desplegar y gestionar tus mesas'}
-                      </p>
-                    </div>
+              {/* Mis Reservas y Gestiones (siempre visible, sin desplegable) */}
+              <section className="rounded-2xl bg-white p-6 shadow-md md:col-span-2">
+                <div className="flex items-center gap-2.5 mb-4">
+                  <div className="p-2 rounded-lg bg-teal-50 text-teal-700">
+                    <Calendar className="w-5 h-5" />
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-mono-code font-bold text-cyan-800 hidden sm:inline">
-                      {isBookingsSectionOpen ? 'Ocultar' : 'Ver Reservas'}
-                    </span>
-                    <div className="p-1 rounded-lg bg-sky-200 text-slate-800">
-                      {isBookingsSectionOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                    </div>
+                  <div>
+                    <h3 className={sectionHeader + ' flex items-center gap-2'}>
+                      Mis Reservas y Gestiones
+                      <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-xs font-semibold">
+                        {userBookings.length}
+                      </span>
+                    </h3>
+                    <p className={mutedText}>Gestiona tus mesas reservadas.</p>
                   </div>
-                </button>
+                </div>
 
-                {isBookingsSectionOpen && (
-                  <div className="p-5 border-t border-sky-300 bg-white/90 space-y-4 animate-in slide-in-from-top-2 duration-200">
-                    {userBookings.length === 0 ? (
-                      <p className="text-xs font-mono-code text-slate-500 italic py-4 text-center">
-                        No tienes reservas registradas. Selecciona un negocio abajo para reservar tu mesa.
-                      </p>
-                    ) : (
-                      <div className="space-y-3">
-                        {userBookings.map((b) => {
-                          const isCancelled = b.status === 'cancelada';
-                          return (
-                            <div 
-                              key={b.id} 
-                              className={`p-4 rounded-xl border transition-all ${
-                                isCancelled 
-                                  ? 'bg-slate-100/80 border-slate-300 opacity-75' 
-                                  : 'bg-white border-sky-300 shadow-sm hover:border-cyan-500'
+                {userBookings.length === 0 ? (
+                  <p className="text-sm text-gray-400 italic py-4 text-center">
+                    No tienes reservas registradas. Selecciona un negocio arriba para reservar tu mesa.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {userBookings.map((b) => {
+                      const isCancelled = b.status === 'cancelada';
+                      return (
+                        <div
+                          key={b.id}
+                          className={`p-4 rounded-xl border transition-all ${
+                            isCancelled
+                              ? 'bg-gray-50 border-gray-200 opacity-75'
+                              : 'bg-white border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div>
+                              <span className="text-xs text-gray-400 block uppercase">
+                                Código: {b.id}
+                              </span>
+                              <h4 className="font-extrabold text-sm text-gray-900 flex items-center gap-1.5">
+                                <Building2 className="w-4 h-4 text-teal-700 shrink-0" />
+                                {b.placeName}
+                              </h4>
+                            </div>
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase border ${
+                                isCancelled
+                                  ? 'bg-red-50 text-red-600 border-red-200'
+                                  : 'bg-green-50 text-green-700 border-green-200'
                               }`}
                             >
-                              <div className="flex items-start justify-between gap-2 mb-2">
-                                <div>
-                                  <span className="text-[10px] font-mono-code font-bold text-slate-400 block uppercase">
-                                    Código: {b.id}
-                                  </span>
-                                  <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">
-                                    <Building2 className="w-4 h-4 text-cyan-700 shrink-0" />
-                                    {b.placeName}
-                                  </h4>
-                                </div>
-                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono-code font-bold uppercase border ${
-                                  isCancelled 
-                                    ? 'bg-rose-100 text-rose-700 border-rose-300' 
-                                    : 'bg-emerald-100 text-emerald-800 border-emerald-400'
-                                }`}>
-                                  {isCancelled ? 'CANCELADA' : 'CONFIRMADA'}
-                                </span>
-                              </div>
+                              {isCancelled ? 'Cancelada' : 'Confirmada'}
+                            </span>
+                          </div>
 
-                              <p className="text-xs font-mono-code text-slate-600 flex items-center gap-1 mb-3 truncate">
-                                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                {b.placeAddress}
-                              </p>
+                          <p className="text-sm text-gray-600 flex items-center gap-1 mb-3 truncate">
+                            <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+                            {b.placeAddress}
+                          </p>
 
-                              <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 text-center text-xs mb-3">
-                                <div>
-                                  <span className="text-[9px] font-mono-code text-slate-400 block uppercase">Comensales</span>
-                                  <span className="font-bold text-slate-800 text-[11px]">{b.guests}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[9px] font-mono-code text-slate-400 block uppercase">Fecha</span>
-                                  <span className="font-bold text-slate-800 text-[11px]">{b.date}</span>
-                                </div>
-                                <div>
-                                  <span className="text-[9px] font-mono-code text-slate-400 block uppercase">Hora</span>
-                                  <span className="font-bold text-slate-800 text-[11px]">{b.time} h</span>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2 justify-end pt-1 border-t border-slate-100">
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEmailForBooking(b)}
-                                  className="px-3 py-1.5 rounded-lg bg-cyan-950 hover:bg-slate-900 text-[#00f2ff] text-[11px] font-mono-code font-bold transition-all flex items-center gap-1 cursor-pointer shadow-sm"
-                                >
-                                  <Mail className="w-3.5 h-3.5" />
-                                  Ver Correo
-                                </button>
-
-                                {!isCancelled && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setBookingToCancel(b)}
-                                    className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-mono-code font-bold transition-all flex items-center gap-1 cursor-pointer"
-                                    title="Cancelar esta reserva"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                    Cancelar Reserva
-                                  </button>
-                                )}
-                              </div>
+                          <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-gray-50 border border-gray-100 text-center text-sm mb-3">
+                            <div>
+                              <span className="text-xs text-gray-400 block uppercase">Comensales</span>
+                              <span className="font-bold text-gray-800">{b.guests}</span>
                             </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                            <div>
+                              <span className="text-xs text-gray-400 block uppercase">Fecha</span>
+                              <span className="font-bold text-gray-800">{b.date}</span>
+                            </div>
+                            <div>
+                              <span className="text-xs text-gray-400 block uppercase">Hora</span>
+                              <span className="font-bold text-gray-800">{b.time} h</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 justify-end pt-1 border-t border-gray-100">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEmailForBooking(b)}
+                              className="inline-flex items-center gap-1.5 text-teal-700 hover:underline font-medium text-sm"
+                            >
+                              <Mail className="w-3.5 h-3.5" />
+                              Ver Correo
+                            </button>
+                            {!isCancelled && (
+                              <button
+                                type="button"
+                                onClick={() => setBookingToCancel(b)}
+                                className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 font-medium text-sm"
+                                title="Cancelar esta reserva"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Cancelar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
-              </PastelCard>
+              </section>
             </div>
           </>
         ) : (
-          <PastelCard variant="accent" className="border-2 border-cyan-400">
+          <section className="rounded-2xl bg-white p-6 shadow-md border-2 border-teal-100">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-cyan-900 text-[#00f2ff]">
+              <div className="p-2.5 rounded-xl bg-teal-600 text-white">
                 <LogIn className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base font-display font-bold text-slate-900">
+                <h3 className="text-base font-bold text-gray-900">
                   Herramientas exclusivas para consumidores
                 </h3>
-                <p className="text-xs font-sans-ui text-slate-700">
-                  Inicia sesión como consumidor para acceder a tus preferencias, favoritos, fechas importantes, alertas y reservas.
+                <p className="text-sm text-gray-600">
+                  Inicia sesión para acceder a tus preferencias, favoritos, fechas importantes, alertas y reservas.
                 </p>
               </div>
             </div>
-          </PastelCard>
+          </section>
         )}
       </div>
 
-      {/* Chatbot como elemento flotante */}
+      {/* Chatbot flotante (solo usuarios autenticados) */}
       <ConsumerChatFloating />
 
       {/* Review Modal */}
@@ -757,42 +764,42 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
 
       {/* Confirmation Dialog for Cancellation */}
       {bookingToCancel && (
-        <div className="fixed inset-0 z-[110] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-slate-900 border-2 border-rose-500/60 rounded-2xl max-w-md w-full overflow-hidden shadow-[0_0_50px_rgba(244,63,94,0.3)] text-slate-100 p-6 space-y-5 relative">
+        <div className="fixed inset-0 z-[110] bg-black/40 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-xl overflow-hidden p-6 space-y-5 relative">
             <div className="flex items-start gap-3.5">
-              <div className="p-3 rounded-xl bg-rose-500/20 text-rose-400 shrink-0 border border-rose-500/30">
+              <div className="p-3 rounded-xl bg-red-50 text-red-500 shrink-0 border border-red-200">
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <h3 className="font-extrabold text-base text-white">
+                <h3 className="font-bold text-base text-gray-900">
                   ¿Seguro que quieres cancelar la reserva?
                 </h3>
-                <p className="text-xs text-slate-400">
-                  La mesa se liberará inmediatamente para otros clientes y te enviaremos una notificación de cancelación por correo.
+                <p className="text-sm text-gray-500">
+                  La mesa se liberará inmediatamente y te enviaremos una notificación de cancelación por correo.
                 </p>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 space-y-2 text-xs font-mono-code">
+            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 space-y-2 text-sm text-gray-700">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Establecimiento:</span>
-                <span className="font-bold text-white text-right">{bookingToCancel.placeName}</span>
+                <span className="text-gray-500">Establecimiento:</span>
+                <span className="font-bold text-gray-900 text-right">{bookingToCancel.placeName}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Código de reserva:</span>
-                <span className="font-bold text-[#00f2ff]">{bookingToCancel.id}</span>
+                <span className="text-gray-500">Código de reserva:</span>
+                <span className="font-bold text-teal-700">{bookingToCancel.id}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Fecha y Hora:</span>
-                <span className="font-bold text-amber-300">{bookingToCancel.date} a las {bookingToCancel.time} h</span>
+                <span className="text-gray-500">Fecha y Hora:</span>
+                <span className="font-bold text-gray-900">{bookingToCancel.date} a las {bookingToCancel.time} h</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-800/80">
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
               <button
                 type="button"
                 onClick={() => setBookingToCancel(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono-code font-bold transition-all cursor-pointer"
+                className="border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
               >
                 No, mantener reserva
               </button>
@@ -803,7 +810,7 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
                   setBookingToCancel(null);
                   handleCancelBooking(idToCancel);
                 }}
-                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-mono-code font-bold transition-all shadow-md cursor-pointer"
+                className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
               >
                 Sí, cancelar
               </button>
