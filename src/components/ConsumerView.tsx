@@ -184,7 +184,7 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
   const ratingCount = selectedPlace?.userRatingCount;
 
   return (
-    <div className="py-6 px-4 sm:px-6 max-w-5xl mx-auto space-y-6">
+    <div className="py-6 px-4 sm:px-6 max-w-6xl mx-auto space-y-6">
       
       {/* 1. Interactive AI Search Card */}
       <PastelCard variant="accent" className="relative overflow-visible shadow-[0_0_25px_rgba(0,242,255,0.1)]">
