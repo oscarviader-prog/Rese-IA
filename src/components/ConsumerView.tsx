@@ -9,6 +9,7 @@ import { ConsumerFavorites } from './ConsumerFavorites';
 import { ImportantDatesSection } from './ImportantDatesSection';
 import { AlertSettingsSection } from './AlertSettingsSection';
 import { FavoriteButton } from './FavoriteButton';
+import { ConsumerChatFloating } from './ConsumerChatFloating';
 import { useAuth } from '../context/AuthContext';
 import { getStoredBookings, saveBooking, cancelBooking } from '../lib/bookings';
 import { getConsumerImportantDates, isReminderDue, nextOccurrence, ImportantDate } from '../lib/importantDates';
@@ -34,8 +35,7 @@ import {
   Trash2,
   AlertTriangle,
   Bot,
-  CalendarHeart,
-  Bell,
+  LogIn,
 } from 'lucide-react';
 
 interface ConsumerViewProps {
@@ -54,6 +54,9 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
   onOpenChat,
 }) => {
   const { user } = useAuth();
+
+  // True solo cuando existe una sesión válida de consumidor autenticado
+  const isConsumerAuthed = !!user && user.role === 'consumer';
 
   // Review Modal state
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -184,545 +187,566 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
   const ratingCount = selectedPlace?.userRatingCount;
 
   return (
-    <div className="py-6 px-4 sm:px-6 max-w-5xl mx-auto space-y-6">
-      
-      {/* 1. Interactive AI Search Card */}
-      <PastelCard variant="accent" className="relative overflow-visible shadow-[0_0_25px_rgba(0,242,255,0.1)]">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full bg-cyan-800 text-cyan-100 text-[10px] font-mono-code font-bold tracking-wider uppercase border border-cyan-400 shadow-sm">
-              ✨ RESEÑIA BUSCADOR INTELIGENTE
-            </span>
-            <h3 className="text-lg font-display font-bold text-slate-900">
-              ¿Qué negocio o lugar buscas hoy?
-            </h3>
-          </div>
-          <span className="text-[11px] font-mono-code text-slate-600">
-            Google Places API en tiempo real
-          </span>
-        </div>
+    <div className="w-full bg-white text-slate-900">
+      <div className="py-8 px-4 sm:px-6 max-w-5xl mx-auto space-y-6">
 
-        <p className="text-xs font-sans-ui text-slate-700 mb-3">
-          Busca cualquier establecimiento real para consultar su puntuación y detalles.
-        </p>
-
-        <div className="mb-2">
-          <SearchBar 
-            onSelectPlace={(placeId, place) => {
-              if (onSelectPlace) onSelectPlace(placeId, place);
-            }}
-            placeholder="Buscar en Google Places (ej: restaurante, farmacia, pizza, hotel...)"
-          />
-        </div>
-      </PastelCard>
-
-      {/* 1.2 AI Chatbot Access Card */}
-      {onOpenChat && (
-        <PastelCard variant="darker" className="border-2 border-[#0F766E]/50 hover:border-[#0F766E]/80 transition-all cursor-pointer group" onClick={onOpenChat}>
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-[#0F766E]/10 border border-[#0F766E]/30 group-hover:bg-[#0F766E]/20 transition-colors shadow-[0_0_15px_rgba(15,118,110,0.15)]">
-              <Bot className="w-6 h-6 text-[#0F766E]" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-display font-bold text-slate-900 flex items-center gap-2">
-                Asistente de Recomendaciones
-                <span className="px-2 py-0.5 rounded-full bg-[#0F766E]/10 text-[#0F766E] text-[10px] font-mono-code font-bold uppercase border border-[#0F766E]/30">
-                  IA
-                </span>
+        {/* 1. Interactive AI Search Card */}
+        <PastelCard variant="accent" className="relative overflow-visible shadow-[0_0_25px_rgba(0,242,255,0.1)]">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-cyan-800 text-cyan-100 text-[10px] font-mono-code font-bold tracking-wider uppercase border border-cyan-400 shadow-sm">
+                ✨ RESEÑIA BUSCADOR INTELIGENTE
+              </span>
+              <h3 className="text-lg font-display font-bold text-slate-900">
+                ¿Qué negocio o lugar buscas hoy?
               </h3>
-              <p className="text-[11px] font-mono-code text-slate-600 mt-0.5">
-                Describe qué buscas y te ayudaré a encontrar el lugar ideal
-              </p>
             </div>
-            <div className="px-3 py-1.5 rounded-lg bg-[#0F766E] text-white text-[11px] font-mono-code font-bold group-hover:bg-[#0d665e] transition-colors shadow-sm hidden sm:block">
-              Abrir Chat
-            </div>
+            <span className="text-[11px] font-mono-code text-slate-600">
+              Google Places API en tiempo real
+            </span>
+          </div>
+
+          <p className="text-xs font-sans-ui text-slate-700 mb-3">
+            Busca cualquier establecimiento real para consultar su puntuación y detalles.
+          </p>
+
+          <div className="mb-2">
+            <SearchBar 
+              onSelectPlace={(placeId, place) => {
+                if (onSelectPlace) onSelectPlace(placeId, place);
+              }}
+              placeholder="Buscar en Google Places (ej: restaurante, farmacia, pizza, hotel...)"
+            />
           </div>
         </PastelCard>
-      )}
 
-      {/* 1.3 Consumer Preferences */}
-      <ConsumerPreferences userId={user?.id} />
-
-      {/* 1.4 Consumer Favorites */}
-      <ConsumerFavorites
-        userId={user?.id}
-        onViewPlace={(placeId, place) => {
-          if (onSelectPlace) onSelectPlace(placeId, place);
-        }}
-      />
-
-      {/* 1.4b Recordatorio global: fechas importantes a 7 días */}
-      {remindersAllowed && upcomingReminders.length > 0 && (
-        <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 shadow-sm">
-          <div className="flex items-center gap-2 mb-1.5">
-            <div className="p-1.5 rounded-lg bg-amber-200 text-amber-800">
-              <Bell className="w-4 h-4" />
-            </div>
-            <h3 className="text-sm font-mono-code font-bold uppercase tracking-wider text-amber-900">
-              Recordatorio · tus fechas importantes están muy cerca
-            </h3>
-          </div>
-          <div className="space-y-2">
-            {upcomingReminders.map((d) => {
-              const next = nextOccurrence(d, new Date());
-              return (
-                <div
-                  key={d.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-white border border-amber-300"
-                >
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">{d.name}</p>
-                    <p className="text-xs font-mono-code text-slate-600">
-                      Falta 1 semana para {d.day}/
-                      {String(d.month).padStart(2, '0')}
-                      {d.occurrence_type === 'unica' && d.year ? `/${d.year}` : ''} ·{' '}
-                      {next
-                        ? `se celebra el ${next.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`
-                        : ''}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setAutoOpen({ dateId: d.id, nonce: Date.now() })}
-                    className="px-3.5 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-mono-code font-bold transition-all cursor-pointer shrink-0"
-                  >
-                    Ver recomendaciones para esta ocasión
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* 1.5 Mis Fechas Importantes */}
-      <ImportantDatesSection
-        userId={user?.id}
-        zone={user?.city}
-        autoOpen={autoOpen}
-        onViewPlace={(placeId, place) => {
-          if (onSelectPlace) onSelectPlace(placeId, place);
-        }}
-      />
-
-      {/* 1.5b Alertas y notificaciones del consumidor */}
-      <AlertSettingsSection userId={user?.id} />
-
-      {/* 1.6 Mis Reservas en Vivo Card (Desplegable) */}
-      <PastelCard variant="darker" className="border-2 border-cyan-500/40 p-0 overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setIsBookingsSectionOpen(!isBookingsSectionOpen)}
-          className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-sky-200/50 transition-colors cursor-pointer select-none"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-cyan-950 text-[#00f2ff]">
-              <BookmarkCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-mono-code font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-                Mis Reservas y Gestiones
-                <span className="px-2 py-0.5 rounded-full bg-cyan-950 text-[#00f2ff] text-[11px] font-bold font-mono-code">
-                  {userBookings.length}
-                </span>
-              </h3>
-              <p className="text-[11px] font-mono-code text-slate-600">
-                {isBookingsSectionOpen ? 'Haz clic para plegar el panel' : 'Haz clic para desplegar y gestionar tus mesas'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono-code font-bold text-cyan-800 hidden sm:inline">
-              {isBookingsSectionOpen ? 'Ocultar' : 'Ver Reservas'}
-            </span>
-            <div className="p-1 rounded-lg bg-sky-200 text-slate-800">
-              {isBookingsSectionOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-            </div>
-          </div>
-        </button>
-
-        {isBookingsSectionOpen && (
-          <div className="p-5 border-t border-sky-300 bg-white/90 space-y-4 animate-in slide-in-from-top-2 duration-200">
-            {userBookings.length === 0 ? (
-              <p className="text-xs font-mono-code text-slate-500 italic py-4 text-center">
-                No tienes reservas registradas. Selecciona un negocio abajo para reservar tu mesa.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                {userBookings.map((b) => {
-                  const isCancelled = b.status === 'cancelada';
-                  return (
-                    <div 
-                      key={b.id} 
-                      className={`p-4 rounded-xl border transition-all ${
-                        isCancelled 
-                          ? 'bg-slate-100/80 border-slate-300 opacity-75' 
-                          : 'bg-white border-sky-300 shadow-sm hover:border-cyan-500'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div>
-                          <span className="text-[10px] font-mono-code font-bold text-slate-400 block uppercase">
-                            Código: {b.id}
-                          </span>
-                          <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">
-                            <Building2 className="w-4 h-4 text-cyan-700 shrink-0" />
-                            {b.placeName}
-                          </h4>
-                        </div>
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono-code font-bold uppercase border ${
-                          isCancelled 
-                            ? 'bg-rose-100 text-rose-700 border-rose-300' 
-                            : 'bg-emerald-100 text-emerald-800 border-emerald-400'
-                        }`}>
-                          {isCancelled ? 'CANCELADA' : 'CONFIRMADA'}
-                        </span>
-                      </div>
-
-                      <p className="text-xs font-mono-code text-slate-600 flex items-center gap-1 mb-3 truncate">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        {b.placeAddress}
-                      </p>
-
-                      <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 text-center text-xs mb-3">
-                        <div>
-                          <span className="text-[9px] font-mono-code text-slate-400 block uppercase">Comensales</span>
-                          <span className="font-bold text-slate-800 text-[11px]">{b.guests}</span>
-                        </div>
-                        <div>
-                          <span className="text-[9px] font-mono-code text-slate-400 block uppercase">Fecha</span>
-                          <span className="font-bold text-slate-800 text-[11px]">{b.date}</span>
-                        </div>
-                        <div>
-                          <span className="text-[9px] font-mono-code text-slate-400 block uppercase">Hora</span>
-                          <span className="font-bold text-slate-800 text-[11px]">{b.time} h</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 justify-end pt-1 border-t border-slate-100">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEmailForBooking(b)}
-                          className="px-3 py-1.5 rounded-lg bg-cyan-950 hover:bg-slate-900 text-[#00f2ff] text-[11px] font-mono-code font-bold transition-all flex items-center gap-1 cursor-pointer shadow-sm"
-                        >
-                          <Mail className="w-3.5 h-3.5" />
-                          Ver Correo
-                        </button>
-
-                        {!isCancelled && (
-                          <button
-                            type="button"
-                            onClick={() => setBookingToCancel(b)}
-                            className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-mono-code font-bold transition-all flex items-center gap-1 cursor-pointer"
-                            title="Cancelar esta reserva"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Cancelar Reserva
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-      </PastelCard>
-
-      {/* 2. Main Detailed Card for Selected Place */}
-      {selectedPlace ? (
-        <>
-          <PastelCard className="border-2 border-cyan-400/80">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
-              <div>
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h2 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900">
-                    {placeName}
-                  </h2>
-                  <span className="px-2.5 py-0.5 rounded-full bg-cyan-800 text-cyan-100 border border-cyan-400 text-[11px] font-mono-code font-bold flex items-center gap-1 shadow-sm">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-cyan-300" />
-                    GOOGLE PLACES
-                  </span>
-                </div>
-                <p className="text-xs font-mono-code text-slate-700 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-slate-600" />
-                  {placeAddress} · {placeCategory}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                <FavoriteButton place={selectedPlace} />
-                <button
-                  onClick={() => setIsReviewModalOpen(true)}
-                  className="px-3.5 py-2 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white text-xs font-mono-code font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  ✍️ Escribe tu reseña
-                </button>
-              </div>
-            </div>
-
-            {/* Dos Cajas Comparativas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-              {/* Box 1: NOTA MOSTRADA */}
-              <div className="p-4 rounded-xl bg-slate-200/90 border border-slate-300 text-slate-800 flex flex-col justify-between">
-                <div className="text-[11px] font-mono-code font-bold uppercase text-slate-600 tracking-wider mb-2">
-                  NOTA MOSTRADA (Google Places)
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-display font-bold text-slate-800">
-                    {googleRating !== undefined ? googleRating : 'N/A'}
-                  </span>
-                  <div className="flex items-center text-amber-500 text-lg">
-                    ★ ★ ★ ★ ★
-                  </div>
-                </div>
-                <span className="text-[11px] font-mono-code text-slate-500 mt-2">
-                  {ratingCount !== undefined 
-                    ? `${ratingCount.toLocaleString('es-ES')} reseñas registradas en Google`
-                    : 'Sin opiniones registradas'}
-                </span>
-              </div>
-
-              {/* Box 2: NOTA REAL PONDERADA */}
-              <div className="p-4 rounded-xl bg-slate-900 text-white border-2 border-cyan-400/50 shadow-md flex flex-col justify-between">
-                <div className="text-[11px] font-mono-code font-bold uppercase text-cyan-200 tracking-wider mb-2">
-                  NOTA REAL PONDERADA (ReseñIA)
-                </div>
-                <div className="flex items-baseline gap-3 my-1">
-                  <span className="text-xl font-display font-bold text-cyan-300">
-                    Próximamente
-                  </span>
-                </div>
-                <span className="text-[11px] font-mono-code text-cyan-200/70 mt-2">
-                  El análisis ponderado anti-bot se calculará en la siguiente versión
-                </span>
-              </div>
-            </div>
-          </PastelCard>
-
-          {/* 3. Community User Reviews */}
-          <PastelCard variant="darker">
-            <div className="flex items-center justify-between mb-3 border-b border-sky-300 pb-2">
-              <h4 className="text-xs font-mono-code font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
-                <MessageSquareText className="w-4 h-4 text-cyan-800" />
-                Reseñas aportadas por la comunidad ({userReviews.length})
-              </h4>
-            </div>
-
-            {userReviews.length === 0 ? (
-              <p className="text-xs font-mono-code text-slate-500 italic py-3 text-center">
-                No hay reseñas locales registradas aún para este negocio. ¡Sé el primero en aportar una!
-              </p>
-            ) : (
-              <div className="space-y-2.5">
-                {userReviews.map((rev, idx) => (
-                  <div 
-                    key={idx} 
-                    className="p-3.5 rounded-xl border border-sky-300 bg-white/90 text-xs text-slate-800"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold font-mono-code text-slate-900">{rev.author}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-amber-500 font-bold">{"★".repeat(rev.rating)}</span>
-                        <span className="text-[10px] text-slate-400 font-mono-code">{rev.date || 'Reciente'}</span>
-                      </div>
-                    </div>
-                    <p className="font-sans-ui text-slate-800 leading-relaxed">{rev.comment}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </PastelCard>
-
-          {/* 4. Reservar Mesa Accordion */}
-          <PastelCard variant="darker" className="p-0 overflow-hidden">
-            <button
-              onClick={() => setIsReserveOpen(!isReserveOpen)}
-              className="w-full p-5 flex items-center justify-between text-left hover:bg-sky-200/50 transition-colors cursor-pointer"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-cyan-700 text-white">
-                  <Calendar className="w-5 h-5" />
-                </div>
+        {/* 2. Main Detailed Card for Selected Place (resultado debajo del buscador) */}
+        {selectedPlace ? (
+          <>
+            <PastelCard className="border-2 border-cyan-400/80">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
                 <div>
-                  <h3 className="text-base font-display font-bold text-slate-900">
-                    Reservar en {placeName}
-                  </h3>
-                  <p className="text-xs font-mono-code text-slate-600">
-                    Solicitud directa · sin comisión
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <h2 className="text-2xl sm:text-3xl font-display font-extrabold text-slate-900">
+                      {placeName}
+                    </h2>
+                    <span className="px-2.5 py-0.5 rounded-full bg-cyan-800 text-cyan-100 border border-cyan-400 text-[11px] font-mono-code font-bold flex items-center gap-1 shadow-sm">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-cyan-300" />
+                      GOOGLE PLACES
+                    </span>
+                  </div>
+                  <p className="text-xs font-mono-code text-slate-700 flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-slate-600" />
+                    {placeAddress} · {placeCategory}
                   </p>
                 </div>
+
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  <FavoriteButton place={selectedPlace} />
+                  {isConsumerAuthed ? (
+                    <button
+                      onClick={() => setIsReviewModalOpen(true)}
+                      className="px-3.5 py-2 rounded-xl bg-cyan-700 hover:bg-cyan-800 text-white text-xs font-mono-code font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <PlusCircle className="w-4 h-4" />
+                      ✍️ Escribe tu reseña
+                    </button>
+                  ) : (
+                    <span className="self-start px-3.5 py-2 rounded-xl bg-slate-200 text-slate-600 border border-slate-300 text-xs font-mono-code font-bold shrink-0">
+                      Inicia sesión para reseñar
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="p-1.5 rounded-lg bg-white/80 text-slate-700 border border-sky-300">
-                {isReserveOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-              </div>
-            </button>
 
-            {isReserveOpen && (
-              <div className="p-5 border-t border-sky-300 bg-white/90 space-y-4 animate-in slide-in-from-top-2 duration-200">
-                {reserveConfirmed ? (
-                  <div className="p-4 rounded-xl bg-emerald-950 text-white border border-emerald-500/60 shadow-lg space-y-3">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-bold text-sm text-emerald-300">
-                            ¡Reserva realizada con éxito!
-                          </h4>
-                          <span className="px-2 py-0.5 rounded-full bg-cyan-950 text-[#00f2ff] border border-cyan-500/40 text-[10px] font-mono-code font-bold">
-                            {bookingCode}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-300 leading-relaxed">
-                          {reserveGuests} para {reserveDate} a las {reserveTime} h en <strong className="text-white">{placeName}</strong>.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="p-3 rounded-lg bg-slate-900/90 border border-cyan-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-[#00f2ff] shrink-0" />
-                        <div>
-                          <span className="text-slate-400 block text-[10px] font-mono-code uppercase">Correo enviado a</span>
-                          <span className="text-cyan-200 font-bold font-mono-code">{reserveEmail}</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                        <button
-                          type="button"
-                          onClick={() => setIsEmailModalOpen(true)}
-                          className="px-3 py-1.5 rounded-lg bg-cyan-900 hover:bg-cyan-800 text-[#00f2ff] border border-cyan-500/50 text-xs font-mono-code font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          Ver resguardo por email
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setReserveConfirmed(false);
-                          }}
-                          className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono-code transition-all cursor-pointer"
-                        >
-                          Nueva reserva
-                        </button>
-                      </div>
+              {/* Dos Cajas Comparativas */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+                {/* Box 1: NOTA MOSTRADA */}
+                <div className="p-4 rounded-xl bg-slate-200/90 border border-slate-300 text-slate-800 flex flex-col justify-between">
+                  <div className="text-[11px] font-mono-code font-bold uppercase text-slate-600 tracking-wider mb-2">
+                    NOTA MOSTRADA (Google Places)
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-display font-bold text-slate-800">
+                      {googleRating !== undefined ? googleRating : 'N/A'}
+                    </span>
+                    <div className="flex items-center text-amber-500 text-lg">
+                      ★ ★ ★ ★ ★
                     </div>
                   </div>
-                ) : (
-                  <form onSubmit={handleBookingSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-mono-code font-bold text-slate-600 uppercase mb-1">
-                          Comensales
-                        </label>
-                        <select
-                          value={reserveGuests}
-                          onChange={(e) => setReserveGuests(e.target.value)}
-                          className="w-full bg-slate-100 text-slate-900 border border-sky-300 rounded-lg p-2.5 text-xs font-sans-ui focus:ring-1 focus:ring-cyan-600 focus:outline-none"
-                        >
-                          <option>1 persona</option>
-                          <option>2 personas</option>
-                          <option>4 personas</option>
-                          <option>6 personas</option>
-                          <option>8 personas</option>
-                        </select>
-                      </div>
+                  <span className="text-[11px] font-mono-code text-slate-500 mt-2">
+                    {ratingCount !== undefined 
+                      ? `${ratingCount.toLocaleString('es-ES')} reseñas registradas en Google`
+                      : 'Sin opiniones registradas'}
+                  </span>
+                </div>
 
-                      <div>
-                        <label className="block text-[10px] font-mono-code font-bold text-slate-600 uppercase mb-1">
-                          Fecha
-                        </label>
-                        <select
-                          value={reserveDate}
-                          onChange={(e) => setReserveDate(e.target.value)}
-                          className="w-full bg-slate-100 text-slate-900 border border-sky-300 rounded-lg p-2.5 text-xs font-sans-ui focus:ring-1 focus:ring-cyan-600 focus:outline-none"
-                        >
-                          <option>Hoy</option>
-                          <option>Mañana</option>
-                          <option>Este Viernes</option>
-                          <option>Este Sábado</option>
-                          <option>Próximo Domingo</option>
-                        </select>
-                      </div>
+                {/* Box 2: NOTA REAL PONDERADA */}
+                <div className="p-4 rounded-xl bg-slate-900 text-white border-2 border-cyan-400/50 shadow-md flex flex-col justify-between">
+                  <div className="text-[11px] font-mono-code font-bold uppercase text-cyan-200 tracking-wider mb-2">
+                    NOTA REAL PONDERADA (ReseñIA)
+                  </div>
+                  <div className="flex items-baseline gap-3 my-1">
+                    <span className="text-xl font-display font-bold text-cyan-300">
+                      Próximamente
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-mono-code text-cyan-200/70 mt-2">
+                    El análisis ponderado anti-bot se calculará en la siguiente versión
+                  </span>
+                </div>
+              </div>
+            </PastelCard>
 
-                      <div>
-                        <label className="block text-[10px] font-mono-code font-bold text-slate-600 uppercase mb-1">
-                          Hora
-                        </label>
-                        <select
-                          value={reserveTime}
-                          onChange={(e) => setReserveTime(e.target.value)}
-                          className="w-full bg-slate-100 text-slate-900 border border-sky-300 rounded-lg p-2.5 text-xs font-sans-ui focus:ring-1 focus:ring-cyan-600 focus:outline-none"
-                        >
-                          <option>13:30</option>
-                          <option>14:00</option>
-                          <option>14:30</option>
-                          <option>20:30</option>
-                          <option>21:00</option>
-                          <option>21:30</option>
-                        </select>
+            {/* 3. Community User Reviews */}
+            <PastelCard variant="darker">
+              <div className="flex items-center justify-between mb-3 border-b border-sky-300 pb-2">
+                <h4 className="text-xs font-mono-code font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                  <MessageSquareText className="w-4 h-4 text-cyan-800" />
+                  Reseñas aportadas por la comunidad ({userReviews.length})
+                </h4>
+              </div>
+
+              {userReviews.length === 0 ? (
+                <p className="text-xs font-mono-code text-slate-500 italic py-3 text-center">
+                  No hay reseñas locales registradas aún para este negocio. ¡Sé el primero en aportar una!
+                </p>
+              ) : (
+                <div className="space-y-2.5">
+                  {userReviews.map((rev, idx) => (
+                    <div 
+                      key={idx} 
+                      className="p-3.5 rounded-xl border border-sky-300 bg-white/90 text-xs text-slate-800"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold font-mono-code text-slate-900">{rev.author}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-500 font-bold">{"★".repeat(rev.rating)}</span>
+                          <span className="text-[10px] text-slate-400 font-mono-code">{rev.date || 'Reciente'}</span>
+                        </div>
                       </div>
+                      <p className="font-sans-ui text-slate-800 leading-relaxed">{rev.comment}</p>
                     </div>
+                  ))}
+                </div>
+              )}
+            </PastelCard>
 
+            {/* 4. Reservar Mesa Accordion */}
+            {isConsumerAuthed ? (
+              <PastelCard variant="darker" className="p-0 overflow-hidden">
+                <button
+                  onClick={() => setIsReserveOpen(!isReserveOpen)}
+                  className="w-full p-5 flex items-center justify-between text-left hover:bg-sky-200/50 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-cyan-700 text-white">
+                      <Calendar className="w-5 h-5" />
+                    </div>
                     <div>
-                      <label className="block text-[10px] font-mono-code font-bold text-slate-600 uppercase mb-1 flex items-center gap-1.5">
-                        <Mail className="w-3.5 h-3.5 text-cyan-600" />
-                        Correo para la confirmación de la reserva
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={reserveEmail}
-                        onChange={(e) => setReserveEmail(e.target.value)}
-                        placeholder="ejemplo@correo.com"
-                        className="w-full bg-slate-100 text-slate-900 border border-sky-300 rounded-lg p-2.5 text-xs font-mono-code focus:ring-1 focus:ring-cyan-600 focus:outline-none placeholder-slate-400"
-                      />
-                      <span className="text-[10px] text-slate-500 mt-1 block">
-                        Se enviará un comprobante digital con el código de reserva a esta dirección.
-                      </span>
+                      <h3 className="text-base font-display font-bold text-slate-900">
+                        Reservar en {placeName}
+                      </h3>
+                      <p className="text-xs font-mono-code text-slate-600">
+                        Solicitud directa · sin comisión
+                      </p>
                     </div>
+                  </div>
+                  <div className="p-1.5 rounded-lg bg-white/80 text-slate-700 border border-sky-300">
+                    {isReserveOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  </div>
+                </button>
 
-                    <div className="pt-1 flex items-center justify-end">
-                      <button
-                        type="submit"
-                        disabled={isSendingEmail}
-                        className="w-full sm:w-auto py-2.5 px-6 rounded-xl bg-cyan-700 hover:bg-cyan-800 disabled:opacity-50 text-white text-xs font-mono-code font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
-                      >
-                        {isSendingEmail ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Enviando correo de confirmación...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-4 h-4" />
-                            Confirmar Reserva y Enviar Correo
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </form>
+                {isReserveOpen && (
+                  <div className="p-5 border-t border-sky-300 bg-white/90 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                    {reserveConfirmed ? (
+                      <div className="p-4 rounded-xl bg-emerald-950 text-white border border-emerald-500/60 shadow-lg space-y-3">
+                        <div className="flex items-start gap-3">
+                          <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-bold text-sm text-emerald-300">
+                                ¡Reserva realizada con éxito!
+                              </h4>
+                              <span className="px-2 py-0.5 rounded-full bg-cyan-950 text-[#00f2ff] border border-cyan-500/40 text-[10px] font-mono-code font-bold">
+                                {bookingCode}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-300 leading-relaxed">
+                              {reserveGuests} para {reserveDate} a las {reserveTime} h en <strong className="text-white">{placeName}</strong>.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-lg bg-slate-900/90 border border-cyan-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-4 h-4 text-[#00f2ff] shrink-0" />
+                            <div>
+                              <span className="text-slate-400 block text-[10px] font-mono-code uppercase">Correo enviado a</span>
+                              <span className="text-cyan-200 font-bold font-mono-code">{reserveEmail}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setIsEmailModalOpen(true)}
+                              className="px-3 py-1.5 rounded-lg bg-cyan-900 hover:bg-cyan-800 text-[#00f2ff] border border-cyan-500/50 text-xs font-mono-code font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                              Ver resguardo por email
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReserveConfirmed(false);
+                              }}
+                              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono-code transition-all cursor-pointer"
+                            >
+                              Nueva reserva
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleBookingSubmit} className="space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-mono-code font-bold text-slate-600 uppercase mb-1">
+                              Comensales
+                            </label>
+                            <select
+                              value={reserveGuests}
+                              onChange={(e) => setReserveGuests(e.target.value)}
+                              className="w-full bg-slate-100 text-slate-900 border border-sky-300 rounded-lg p-2.5 text-xs font-sans-ui focus:ring-1 focus:ring-cyan-600 focus:outline-none"
+                            >
+                              <option>1 persona</option>
+                              <option>2 personas</option>
+                              <option>4 personas</option>
+                              <option>6 personas</option>
+                              <option>8 personas</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-mono-code font-bold text-slate-600 uppercase mb-1">
+                              Fecha
+                            </label>
+                            <select
+                              value={reserveDate}
+                              onChange={(e) => setReserveDate(e.target.value)}
+                              className="w-full bg-slate-100 text-slate-900 border border-sky-300 rounded-lg p-2.5 text-xs font-sans-ui focus:ring-1 focus:ring-cyan-600 focus:outline-none"
+                            >
+                              <option>Hoy</option>
+                              <option>Mañana</option>
+                              <option>Este Viernes</option>
+                              <option>Este Sábado</option>
+                              <option>Próximo Domingo</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-mono-code font-bold text-slate-600 uppercase mb-1">
+                              Hora
+                            </label>
+                            <select
+                              value={reserveTime}
+                              onChange={(e) => setReserveTime(e.target.value)}
+                              className="w-full bg-slate-100 text-slate-900 border border-sky-300 rounded-lg p-2.5 text-xs font-sans-ui focus:ring-1 focus:ring-cyan-600 focus:outline-none"
+                            >
+                              <option>13:30</option>
+                              <option>14:00</option>
+                              <option>14:30</option>
+                              <option>20:30</option>
+                              <option>21:00</option>
+                              <option>21:30</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-mono-code font-bold text-slate-600 uppercase mb-1 flex items-center gap-1.5">
+                            <Mail className="w-3.5 h-3.5 text-cyan-600" />
+                            Correo para la confirmación de la reserva
+                          </label>
+                          <input
+                            type="email"
+                            required
+                            value={reserveEmail}
+                            onChange={(e) => setReserveEmail(e.target.value)}
+                            placeholder="ejemplo@correo.com"
+                            className="w-full bg-slate-100 text-slate-900 border border-sky-300 rounded-lg p-2.5 text-xs font-mono-code focus:ring-1 focus:ring-cyan-600 focus:outline-none placeholder-slate-400"
+                          />
+                          <span className="text-[10px] text-slate-500 mt-1 block">
+                            Se enviará un comprobante digital con el código de reserva a esta dirección.
+                          </span>
+                        </div>
+
+                        <div className="pt-1 flex items-center justify-end">
+                          <button
+                            type="submit"
+                            disabled={isSendingEmail}
+                            className="w-full sm:w-auto py-2.5 px-6 rounded-xl bg-cyan-700 hover:bg-cyan-800 disabled:opacity-50 text-white text-xs font-mono-code font-bold transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+                          >
+                            {isSendingEmail ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Enviando correo de confirmación...
+                              </>
+                            ) : (
+                              <>
+                                <Send className="w-4 h-4" />
+                                Confirmar Reserva y Enviar Correo
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
                 )}
+              </PastelCard>
+            ) : (
+              <PastelCard variant="darker" className="p-0 overflow-hidden">
+                <div className="p-5 flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-slate-200 text-slate-500">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-display font-bold text-slate-900">
+                      Reservar en {placeName}
+                    </h3>
+                    <p className="text-xs font-sans-ui text-slate-600">
+                      Inicia sesión como consumidor para reservar mesa en este establecimiento.
+                    </p>
+                  </div>
+                </div>
+              </PastelCard>
+            )}
+          </>
+        ) : (
+          <PastelCard className="border border-slate-800/80 py-12 text-center bg-slate-50 shadow-sm">
+            <Building2 className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-slate-800 mb-1">
+              Selecciona un negocio para ver detalles
+            </h3>
+            <p className="text-xs font-mono-code text-slate-500">
+              Escribe en la barra de búsqueda para buscar cualquier lugar en Google Places.
+            </p>
+          </PastelCard>
+        )}
+
+        {/* 3. Herramientas exclusivas del consumidor autenticado */}
+        {isConsumerAuthed ? (
+          <>
+            {/* Recordatorio global: fechas importantes a 7 días */}
+            {remindersAllowed && upcomingReminders.length > 0 && (
+              <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="p-1.5 rounded-lg bg-amber-200 text-amber-800">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-sm font-mono-code font-bold uppercase tracking-wider text-amber-900">
+                    Recordatorio · tus fechas importantes están muy cerca
+                  </h3>
+                </div>
+                <div className="space-y-2">
+                  {upcomingReminders.map((d) => {
+                    const next = nextOccurrence(d, new Date());
+                    return (
+                      <div
+                        key={d.id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-white border border-amber-300"
+                      >
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">{d.name}</p>
+                          <p className="text-xs font-mono-code text-slate-600">
+                            Falta 1 semana para {d.day}/
+                            {String(d.month).padStart(2, '0')}
+                            {d.occurrence_type === 'unica' && d.year ? `/${d.year}` : ''} ·{' '}
+                            {next
+                              ? `se celebra el ${next.toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}`
+                              : ''}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAutoOpen({ dateId: d.id, nonce: Date.now() })}
+                          className="px-3.5 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-mono-code font-bold transition-all cursor-pointer shrink-0"
+                        >
+                          Ver recomendaciones para esta ocasión
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
+
+            {/* Grid de herramientas: 2 columnas en escritorio, 1 en móvil */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ConsumerPreferences userId={user?.id} />
+              <ConsumerFavorites
+                userId={user?.id}
+                onViewPlace={(placeId, place) => {
+                  if (onSelectPlace) onSelectPlace(placeId, place);
+                }}
+              />
+              <ImportantDatesSection
+                userId={user?.id}
+                zone={user?.city}
+                autoOpen={autoOpen}
+                onViewPlace={(placeId, place) => {
+                  if (onSelectPlace) onSelectPlace(placeId, place);
+                }}
+              />
+              <AlertSettingsSection userId={user?.id} />
+
+              {/* Mis Reservas en Vivo Card (Desplegable) */}
+              <PastelCard variant="darker" className="border-2 border-cyan-500/40 p-0 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsBookingsSectionOpen(!isBookingsSectionOpen)}
+                  className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-sky-200/50 transition-colors cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-cyan-950 text-[#00f2ff]">
+                      <BookmarkCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-mono-code font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                        Mis Reservas y Gestiones
+                        <span className="px-2 py-0.5 rounded-full bg-cyan-950 text-[#00f2ff] text-[11px] font-bold font-mono-code">
+                          {userBookings.length}
+                        </span>
+                      </h3>
+                      <p className="text-[11px] font-mono-code text-slate-600">
+                        {isBookingsSectionOpen ? 'Haz clic para plegar el panel' : 'Haz clic para desplegar y gestionar tus mesas'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-mono-code font-bold text-cyan-800 hidden sm:inline">
+                      {isBookingsSectionOpen ? 'Ocultar' : 'Ver Reservas'}
+                    </span>
+                    <div className="p-1 rounded-lg bg-sky-200 text-slate-800">
+                      {isBookingsSectionOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                    </div>
+                  </div>
+                </button>
+
+                {isBookingsSectionOpen && (
+                  <div className="p-5 border-t border-sky-300 bg-white/90 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                    {userBookings.length === 0 ? (
+                      <p className="text-xs font-mono-code text-slate-500 italic py-4 text-center">
+                        No tienes reservas registradas. Selecciona un negocio abajo para reservar tu mesa.
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {userBookings.map((b) => {
+                          const isCancelled = b.status === 'cancelada';
+                          return (
+                            <div 
+                              key={b.id} 
+                              className={`p-4 rounded-xl border transition-all ${
+                                isCancelled 
+                                  ? 'bg-slate-100/80 border-slate-300 opacity-75' 
+                                  : 'bg-white border-sky-300 shadow-sm hover:border-cyan-500'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div>
+                                  <span className="text-[10px] font-mono-code font-bold text-slate-400 block uppercase">
+                                    Código: {b.id}
+                                  </span>
+                                  <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">
+                                    <Building2 className="w-4 h-4 text-cyan-700 shrink-0" />
+                                    {b.placeName}
+                                  </h4>
+                                </div>
+                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono-code font-bold uppercase border ${
+                                  isCancelled 
+                                    ? 'bg-rose-100 text-rose-700 border-rose-300' 
+                                    : 'bg-emerald-100 text-emerald-800 border-emerald-400'
+                                }`}>
+                                  {isCancelled ? 'CANCELADA' : 'CONFIRMADA'}
+                                </span>
+                              </div>
+
+                              <p className="text-xs font-mono-code text-slate-600 flex items-center gap-1 mb-3 truncate">
+                                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                {b.placeAddress}
+                              </p>
+
+                              <div className="grid grid-cols-3 gap-2 p-2 rounded-lg bg-slate-50 border border-slate-200 text-center text-xs mb-3">
+                                <div>
+                                  <span className="text-[9px] font-mono-code text-slate-400 block uppercase">Comensales</span>
+                                  <span className="font-bold text-slate-800 text-[11px]">{b.guests}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] font-mono-code text-slate-400 block uppercase">Fecha</span>
+                                  <span className="font-bold text-slate-800 text-[11px]">{b.date}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] font-mono-code text-slate-400 block uppercase">Hora</span>
+                                  <span className="font-bold text-slate-800 text-[11px]">{b.time} h</span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 justify-end pt-1 border-t border-slate-100">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEmailForBooking(b)}
+                                  className="px-3 py-1.5 rounded-lg bg-cyan-950 hover:bg-slate-900 text-[#00f2ff] text-[11px] font-mono-code font-bold transition-all flex items-center gap-1 cursor-pointer shadow-sm"
+                                >
+                                  <Mail className="w-3.5 h-3.5" />
+                                  Ver Correo
+                                </button>
+
+                                {!isCancelled && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setBookingToCancel(b)}
+                                    className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-mono-code font-bold transition-all flex items-center gap-1 cursor-pointer"
+                                    title="Cancelar esta reserva"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    Cancelar Reserva
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </PastelCard>
+            </div>
+          </>
+        ) : (
+          <PastelCard variant="accent" className="border-2 border-cyan-400">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-cyan-900 text-[#00f2ff]">
+                <LogIn className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-display font-bold text-slate-900">
+                  Herramientas exclusivas para consumidores
+                </h3>
+                <p className="text-xs font-sans-ui text-slate-700">
+                  Inicia sesión como consumidor para acceder a tus preferencias, favoritos, fechas importantes, alertas y reservas.
+                </p>
+              </div>
+            </div>
           </PastelCard>
-        </>
-      ) : (
-        <PastelCard className="border border-slate-800/80 py-12 text-center bg-slate-950/60 shadow-lg">
-          <Building2 className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-200 mb-1">
-            Selecciona un negocio para ver detalles
-          </h3>
-          <p className="text-xs font-mono-code text-slate-400">
-            Escribe en la barra de búsqueda para buscar cualquier lugar en Google Places.
-          </p>
-        </PastelCard>
-      )}
+        )}
+      </div>
+
+      {/* Chatbot como elemento flotante */}
+      <ConsumerChatFloating />
 
       {/* Review Modal */}
       <ReviewModal
