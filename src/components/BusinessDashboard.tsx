@@ -333,6 +333,20 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
 
   const status = business.verification_status;
 
+  const inicialNegocio = business.razon_social.trim().charAt(0).toUpperCase();
+
+  const dashboardHeader = (
+    <div className="mb-6 flex items-center gap-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center shadow-md">
+        <span className="text-white text-2xl font-bold">{inicialNegocio}</span>
+      </div>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">{business.razon_social}</h1>
+        <p className="text-sm text-gray-500">Panel de control de tu negocio</p>
+      </div>
+    </div>
+  );
+
   if (status === 'pending_verification') {
     return (
       <div className="min-h-screen bg-[#F5F6F8] px-4 py-12">
@@ -365,7 +379,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
     return (
       <div className="min-h-screen bg-[#F5F6F8] px-4 py-12">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Panel de tu negocio</h1>
+          {dashboardHeader}
           {/* Card verde de verificación */}
           <div className="rounded-2xl border border-green-300 bg-green-50 p-8 shadow-md">
             <div className="flex items-start gap-4">
@@ -419,7 +433,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
     return (
       <div className="min-h-screen bg-[#F5F6F8] px-4 py-12">
         <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Panel de tu negocio</h1>
+          {dashboardHeader}
           <div className="rounded-2xl border border-amber-300 bg-amber-50 p-8 shadow-md">
             <div className="flex items-start gap-4">
               <AlertCircle className="w-8 h-8 text-amber-500 shrink-0" />
