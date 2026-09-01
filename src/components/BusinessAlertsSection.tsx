@@ -209,7 +209,8 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
 
   return (
     <section className="mt-6 rounded-2xl bg-white p-6 shadow-md">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <Bell className="w-5 h-5 text-teal-600" />
         Mis alertas ({alerts.length})
       </h3>
 

@@ -111,7 +111,10 @@ export const BusinessMetricsDashboard: React.FC<BusinessMetricsDashboardProps> =
 
   return (
     <div className="mt-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Evolución de tu negocio</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <TrendingUp className="w-5 h-5 text-teal-600" />
+        Evolución de tu negocio
+      </h3>
 
       {isLoading ? (
         <div className="rounded-2xl bg-white p-6 shadow-md flex flex-col items-center justify-center gap-3 text-gray-600 py-12">
