@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { Star, MessageSquare, ArrowUp, ArrowDown, Minus, Loader2 } from 'lucide-react';
+import { Star, MessageSquare, ArrowUp, ArrowDown, Minus, Loader2, TrendingUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface BusinessMetricsDashboardProps {
@@ -106,6 +106,9 @@ export const BusinessMetricsDashboard: React.FC<BusinessMetricsDashboardProps> =
     reviews: s.user_ratings_total,
   }));
 
+  const isPositiveChange = ratingChange !== null && ratingChange > 0;
+  const isNegativeChange = ratingChange !== null && ratingChange < 0;
+
   return (
     <div className="mt-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Evolución de tu negocio</h3>
@@ -115,40 +118,67 @@ export const BusinessMetricsDashboard: React.FC<BusinessMetricsDashboardProps> =
           <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
           <p className="text-sm">Cargando métricas...</p>
         </div>
-      ) : snapshots.length < 2 ? (
-        <div className="rounded-2xl bg-gray-100 p-6">
-          <p className="text-sm text-gray-600">
-            Estamos recopilando datos de tu negocio. En las próximas semanas verás la evolución
-            completa.
-          </p>
+      ) : snapshots.length === 0 ? (
+        <div className="rounded-2xl bg-gradient-to-br from-teal-50 to-blue-50 p-8 flex flex-col items-center justify-center gap-4 text-center border border-teal-100">
+          <div className="w-16 h-16 rounded-full bg-teal-100 flex items-center justify-center">
+            <TrendingUp className="w-8 h-8 text-teal-600" />
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 mb-1">
+              Aún no tenemos datos suficientes
+            </h4>
+            <p className="text-sm text-gray-600 max-w-md">
+              Estamos recopilando información de tu negocio. En las próximas semanas verás la evolución completa aquí.
+            </p>
+          </div>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div className="rounded-2xl bg-white p-6 shadow-md">
+            <div className="rounded-2xl bg-white p-6 shadow-md border-t-4 border-amber-400">
               <div className="flex items-center gap-2 text-gray-500 mb-2">
-                <Star className="w-4 h-4" />
+                <span className="p-2 rounded-full bg-amber-100">
+                  <Star className="w-6 h-6 text-amber-600" />
+                </span>
                 <span className="text-sm font-medium">Rating actual</span>
               </div>
-              <p className="text-2xl font-bold text-gray-900">{latest.rating.toFixed(1)}</p>
+              <p className="text-3xl font-bold text-gray-900">{latest.rating.toFixed(1)}</p>
             </div>
 
-            <div className="rounded-2xl bg-white p-6 shadow-md">
+            <div
+              className={`rounded-2xl bg-white p-6 shadow-md border-t-4 ${
+                isPositiveChange
+                  ? 'border-green-400'
+                  : isNegativeChange
+                  ? 'border-red-400'
+                  : 'border-gray-300'
+              }`}
+            >
               <div className="flex items-center gap-2 text-gray-500 mb-2">
-                {ratingChange !== null && ratingChange > 0 ? (
-                  <ArrowUp className="w-4 h-4 text-green-600" />
-                ) : ratingChange !== null && ratingChange < 0 ? (
-                  <ArrowDown className="w-4 h-4 text-red-600" />
-                ) : (
-                  <Minus className="w-4 h-4" />
-                )}
+                <span
+                  className={`p-2 rounded-full ${
+                    isPositiveChange
+                      ? 'bg-green-100'
+                      : isNegativeChange
+                      ? 'bg-red-100'
+                      : 'bg-gray-100'
+                  }`}
+                >
+                  {isPositiveChange ? (
+                    <ArrowUp className="w-6 h-6 text-green-600" />
+                  ) : isNegativeChange ? (
+                    <ArrowDown className="w-6 h-6 text-red-600" />
+                  ) : (
+                    <Minus className="w-6 h-6 text-gray-500" />
+                  )}
+                </span>
                 <span className="text-sm font-medium">Cambio vs mes anterior</span>
               </div>
               <p
-                className={`text-2xl font-bold ${
-                  ratingChange !== null && ratingChange > 0
+                className={`text-3xl font-bold ${
+                  isPositiveChange
                     ? 'text-green-600'
-                    : ratingChange !== null && ratingChange < 0
+                    : isNegativeChange
                     ? 'text-red-600'
                     : 'text-gray-900'
                 }`}
@@ -159,32 +189,43 @@ export const BusinessMetricsDashboard: React.FC<BusinessMetricsDashboardProps> =
               </p>
             </div>
 
-            <div className="rounded-2xl bg-white p-6 shadow-md">
+            <div className="rounded-2xl bg-white p-6 shadow-md border-t-4 border-teal-400">
               <div className="flex items-center gap-2 text-gray-500 mb-2">
-                <MessageSquare className="w-4 h-4" />
+                <span className="p-2 rounded-full bg-teal-100">
+                  <MessageSquare className="w-6 h-6 text-teal-600" />
+                </span>
                 <span className="text-sm font-medium">Total reseñas</span>
               </div>
-              <p className="text-2xl font-bold text-gray-900">{latest.user_ratings_total}</p>
+              <p className="text-3xl font-bold text-gray-900">{latest.user_ratings_total}</p>
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-6 shadow-md">
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                <Tooltip content={<CustomTooltip />} />
-                <Line
-                  type="monotone"
-                  dataKey="rating"
-                  stroke="#0d9488"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {snapshots.length >= 2 ? (
+            <div className="rounded-2xl bg-white p-6 shadow-md">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                  <YAxis domain={[0, 5]} tick={{ fontSize: 12 }} stroke="#9ca3af" />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Line
+                    type="monotone"
+                    dataKey="rating"
+                    stroke="#0d9488"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="rounded-2xl bg-gray-50 p-6">
+              <p className="text-sm text-gray-600 text-center">
+                Necesitamos al menos 2 mediciones para mostrar la gráfica de evolución. Vuelve
+                pronto.
+              </p>
+            </div>
+          )}
         </>
       )}
     </div>

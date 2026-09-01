@@ -1,5 +1,15 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CheckCircle, AlertCircle, XCircle, Loader2, RefreshCw, Pencil, X } from 'lucide-react';
+import {
+  CheckCircle,
+  AlertCircle,
+  XCircle,
+  Loader2,
+  RefreshCw,
+  Pencil,
+  X,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { BusinessMetricsDashboard } from './BusinessMetricsDashboard';
@@ -187,7 +197,7 @@ const BusinessDataList: React.FC<{
                   type="text"
                   value={nombreComercial}
                   onChange={(e) => setNombreComercial(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+                  className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
                 />
               </div>
 
@@ -203,7 +213,7 @@ const BusinessDataList: React.FC<{
                   type="email"
                   value={emailFacturacion}
                   onChange={(e) => setEmailFacturacion(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
+                  className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100"
                 />
               </div>
 
@@ -251,6 +261,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
   const { user, loading: authLoading } = useAuth();
   const [business, setBusiness] = useState<BusinessDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDataExpanded, setIsDataExpanded] = useState(false);
 
   const fetchBusiness = useCallback(async () => {
     if (!user) return;
@@ -302,7 +313,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
   if (!business) {
     return (
       <div className="min-h-screen bg-[#F5F6F8] px-4 py-12">
-        <div className="max-w-[800px] mx-auto">
+        <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Panel de tu negocio</h1>
           <div className="bg-white rounded-2xl shadow-md p-8 text-center">
             <p className="text-gray-700 mb-6">Aún no has registrado ningún negocio.</p>
@@ -322,10 +333,24 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
 
   const status = business.verification_status;
 
+  const inicialNegocio = business.razon_social.trim().charAt(0).toUpperCase();
+
+  const dashboardHeader = (
+    <div className="mb-6 flex items-center gap-4">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center shadow-md">
+        <span className="text-white text-2xl font-bold">{inicialNegocio}</span>
+      </div>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">{business.razon_social}</h1>
+        <p className="text-sm text-gray-500">Panel de control de tu negocio</p>
+      </div>
+    </div>
+  );
+
   if (status === 'pending_verification') {
     return (
       <div className="min-h-screen bg-[#F5F6F8] px-4 py-12">
-        <div className="max-w-[800px] mx-auto">
+        <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Panel de tu negocio</h1>
           <div className="rounded-2xl border border-amber-300 bg-amber-50 p-8 shadow-md">
             <div className="flex items-start gap-4">
@@ -353,26 +378,52 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
   if (status === 'verified') {
     return (
       <div className="min-h-screen bg-[#F5F6F8] px-4 py-12">
-        <div className="max-w-[800px] mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Panel de tu negocio</h1>
+        <div className="max-w-6xl mx-auto">
+          {dashboardHeader}
+          {/* Card verde de verificación */}
           <div className="rounded-2xl border border-green-300 bg-green-50 p-8 shadow-md">
             <div className="flex items-start gap-4">
               <CheckCircle className="w-8 h-8 text-green-600 shrink-0" />
               <div>
-                <h2 className="text-xl font-semibold text-green-900 mb-2">Empresa verificada</h2>
+                <h2 className="text-xl font-semibold text-green-900 mb-2">Verificada por ReseñIA</h2>
                 <p className="text-sm text-green-800">
                   Tu empresa está verificada en ReseñIA. Ya puedes gestionar tu negocio.
                 </p>
               </div>
             </div>
           </div>
-          <BusinessDataList business={business} onUpdated={handleBusinessUpdated} />
+
+          {/* Sección colapsable: Datos de tu negocio */}
+          <div className="mt-6 rounded-2xl bg-white p-6 shadow-md">
+            <button
+              type="button"
+              onClick={() => setIsDataExpanded((prev) => !prev)}
+              className="flex w-full items-center justify-between text-left"
+              aria-expanded={isDataExpanded}
+            >
+              <h3 className="text-lg font-semibold text-gray-900">Datos de tu negocio</h3>
+              {isDataExpanded ? (
+                <ChevronUp className="w-5 h-5 text-gray-500 shrink-0" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-500 shrink-0" />
+              )}
+            </button>
+            {isDataExpanded && (
+              <BusinessDataList business={business} onUpdated={handleBusinessUpdated} />
+            )}
+          </div>
+
+          {/* Evolución del rating (ancho completo) */}
           <BusinessMetricsDashboard businessId={business.id} />
-          <BusinessAlertsSection businessId={business.id} />
-          <BusinessReportsSection
-            businessId={business.id}
-            initialFrequency={business.report_frequency || 'weekly'}
-          />
+
+          {/* Alertas + Informes en 2 columnas (1 columna en móvil) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <BusinessAlertsSection businessId={business.id} />
+            <BusinessReportsSection
+              businessId={business.id}
+              initialFrequency={business.report_frequency || 'weekly'}
+            />
+          </div>
         </div>
       </div>
     );
@@ -381,8 +432,8 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
   if (status === 'partially_verified') {
     return (
       <div className="min-h-screen bg-[#F5F6F8] px-4 py-12">
-        <div className="max-w-[800px] mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Panel de tu negocio</h1>
+        <div className="max-w-6xl mx-auto">
+          {dashboardHeader}
           <div className="rounded-2xl border border-amber-300 bg-amber-50 p-8 shadow-md">
             <div className="flex items-start gap-4">
               <AlertCircle className="w-8 h-8 text-amber-500 shrink-0" />
@@ -404,7 +455,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
   if (status === 'rejected') {
     return (
       <div className="min-h-screen bg-[#F5F6F8] px-4 py-12">
-        <div className="max-w-[800px] mx-auto">
+        <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Panel de tu negocio</h1>
           <div className="rounded-2xl border border-red-300 bg-red-50 p-8 shadow-md">
             <div className="flex items-start gap-4">

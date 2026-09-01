@@ -331,7 +331,7 @@ export const BusinessReportsSection: React.FC<BusinessReportsSectionProps> = ({
               value={frequency}
               onChange={(e) => handleChangeFrequency(e.target.value as ReportFrequency)}
               disabled={savingFrequency}
-              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 disabled:opacity-50"
+              className="bg-white text-gray-900 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 disabled:opacity-50"
             >
               <option value="weekly">Semanal</option>
               <option value="biweekly">Quincenal</option>
@@ -380,13 +380,26 @@ export const BusinessReportsSection: React.FC<BusinessReportsSectionProps> = ({
           {error}
         </div>
       ) : reports.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 text-gray-500 py-12 text-center">
-          <FileText className="w-12 h-12 text-gray-300" />
-          <p className="text-sm max-w-sm">
-            {`Aún no tienes informes generados. Se generarán automáticamente cada ${getFrequencyLabel(
-              frequency
-            )} o puedes pulsar 'Generar informe ahora'.`}
-          </p>
+        <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 p-8 flex flex-col items-center justify-center gap-4 text-center border border-purple-100">
+          <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center">
+            <FileText className="w-8 h-8 text-purple-600" />
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 mb-1">
+              Aún no hay informes generados
+            </h4>
+            <p className="text-sm text-gray-600 max-w-md mb-4">
+              Los informes se generan automáticamente según la frecuencia que elijas, o puedes generar uno manualmente ahora mismo.
+            </p>
+            <button
+              type="button"
+              onClick={handleGenerateNow}
+              disabled={generating}
+              className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white font-semibold text-sm py-2 px-4 rounded-lg transition-colors"
+            >
+              {generating ? 'Generando...' : 'Generar mi primer informe'}
+            </button>
+          </div>
         </div>
       ) : (
         <ul className="space-y-4">
