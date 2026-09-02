@@ -10,6 +10,9 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  Eye,
+  EyeOff,
+  Trash2,
 } from 'lucide-react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { supabase } from '../lib/supabase';
@@ -44,6 +47,7 @@ interface Report {
     total_reviews_captured: number;
   };
   generated_at: string;
+  is_hidden: boolean;
 }
 
 // ==========================================
@@ -212,6 +216,8 @@ export const BusinessReportsSection: React.FC<BusinessReportsSectionProps> = ({
   const [generatingError, setGeneratingError] = useState<string | null>(null);
   const [expandedFor, setExpandedFor] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState<string | null>(null);
+  const [showHidden, setShowHidden] = useState(false);
+  const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -311,12 +317,78 @@ export const BusinessReportsSection: React.FC<BusinessReportsSectionProps> = ({
     setExpandedFor((prev) => (prev === reportId ? null : reportId));
   };
 
+  const handleDeleteReport = async (reportId: string) => {
+    const confirmed = window.confirm(
+      '¿Seguro que quieres eliminar este informe? Esta acción no se puede deshacer.'
+    );
+    if (!confirmed) return;
+
+    const previousReports = reports;
+    setReports((prev) => prev.filter((r) => r.id !== reportId));
+    setDeletingReportId(reportId);
+
+    const { error: deleteError } = await supabase
+      .from('business_reports')
+      .delete()
+      .eq('id', reportId);
+
+    if (deleteError) {
+      console.error('Error al eliminar el informe:', deleteError);
+      setReports(previousReports);
+    }
+
+    setDeletingReportId(null);
+  };
+
+  const handleToggleHidden = async (reportId: string, currentHidden: boolean) => {
+    setReports((prev) =>
+      prev.map((r) => (r.id === reportId ? { ...r, is_hidden: !currentHidden } : r))
+    );
+
+    const { error: updateError } = await supabase
+      .from('business_reports')
+      .update({ is_hidden: !currentHidden })
+      .eq('id', reportId);
+
+    if (updateError) {
+      console.error('Error al cambiar la visibilidad del informe:', updateError);
+      setReports((prev) =>
+        prev.map((r) => (r.id === reportId ? { ...r, is_hidden: currentHidden } : r))
+      );
+    }
+  };
+
+  const visibleReports = showHidden ? reports : reports.filter((r) => !r.is_hidden);
+  const hiddenCount = reports.filter((r) => r.is_hidden).length;
+
   return (
     <section className="mt-6 rounded-2xl bg-white p-6 shadow-md">
-      <h3 className="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
-        <FileText className="w-5 h-5 text-teal-600" />
-        Mis informes ({reports.length})
-      </h3>
+      <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <FileText className="w-5 h-5 text-teal-600" />
+          Mis informes ({visibleReports.length})
+        </h3>
+        {hiddenCount > 0 &&
+          (showHidden ? (
+            <button
+              type="button"
+              onClick={() => setShowHidden(false)}
+              className="text-sm text-gray-600 hover:text-gray-800 inline-flex items-center gap-1"
+            >
+              <EyeOff className="w-4 h-4" />
+              Ocultar los ocultos
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowHidden(true)}
+              className="text-sm text-gray-600 hover:text-gray-800 inline-flex items-center gap-1"
+            >
+              <Eye className="w-4 h-4" />
+              Ver ocultos ({hiddenCount})
+            </button>
+          ))}
+      </div>
       <p className="text-sm text-gray-500 mb-4">
         Se generan automáticamente según la frecuencia elegida. También puedes generar uno ahora
         mismo.
@@ -404,15 +476,34 @@ export const BusinessReportsSection: React.FC<BusinessReportsSectionProps> = ({
             </button>
           </div>
         </div>
+      ) : visibleReports.length === 0 ? (
+        <div className="rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 p-8 flex flex-col items-center justify-center gap-4 text-center border border-purple-100">
+          <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center">
+            <FileText className="w-8 h-8 text-purple-600" />
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 mb-1">
+              Aún no hay informes generados
+            </h4>
+            <p className="text-sm text-gray-600 max-w-md">
+              Todos tus informes están ocultos. Pulsa 'Ver ocultos' para mostrarlos.
+            </p>
+          </div>
+        </div>
       ) : (
         <ul className="space-y-4">
-          {reports.map((report) => {
+          {visibleReports.map((report) => {
             const styles = getReportTypeStyles(report.report_type);
             const isExpanded = expandedFor === report.id;
             const { metrics } = report;
 
             return (
-              <li key={report.id} className="rounded-xl border border-gray-200 p-4">
+              <li
+                key={report.id}
+                className={`rounded-xl border border-gray-200 p-4${
+                  report.is_hidden ? ' opacity-60' : ''
+                }`}
+              >
                 {/* Header */}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span
@@ -496,6 +587,29 @@ export const BusinessReportsSection: React.FC<BusinessReportsSectionProps> = ({
                       </span>
                     )}
                   </PDFDownloadLink>
+
+                  <button
+                    type="button"
+                    onClick={() => handleToggleHidden(report.id, report.is_hidden)}
+                    className="text-sm text-gray-600 hover:text-gray-800 font-medium inline-flex items-center gap-1"
+                  >
+                    {report.is_hidden ? (
+                      <Eye className="w-4 h-4" />
+                    ) : (
+                      <EyeOff className="w-4 h-4" />
+                    )}
+                    {report.is_hidden ? 'Mostrar' : 'Ocultar'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteReport(report.id)}
+                    disabled={deletingReportId === report.id}
+                    className="text-sm text-red-600 hover:text-red-800 font-medium inline-flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Eliminar
+                  </button>
                 </div>
 
                 {/* Detalles */}
