@@ -30,6 +30,7 @@ interface Alert {
   triggered_at: string;
   metadata: Record<string, any> | null;
   suggested_reply: string | null;
+  is_hidden: boolean;
 }
 
 // ==========================================
@@ -118,6 +119,7 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
   const [replyErrorFor, setReplyErrorFor] = useState<Record<string, string>>({});
   const [copiedFor, setCopiedFor] = useState<string | null>(null);
   const [hiddenReplyFor, setHiddenReplyFor] = useState<Set<string>>(new Set());
+  const [showHidden, setShowHidden] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -285,12 +287,55 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
     setGeneratingReplyFor(null);
   };
 
+  const handleToggleHidden = async (alertId: string, currentHidden: boolean) => {
+    setAlerts((prev) =>
+      prev.map((a) => (a.id === alertId ? { ...a, is_hidden: !currentHidden } : a))
+    );
+
+    const { error: updateError } = await supabase
+      .from('business_alerts')
+      .update({ is_hidden: !currentHidden })
+      .eq('id', alertId);
+
+    if (updateError) {
+      console.error('Error al cambiar la visibilidad de la alerta:', updateError);
+      setAlerts((prev) =>
+        prev.map((a) => (a.id === alertId ? { ...a, is_hidden: currentHidden } : a))
+      );
+    }
+  };
+
+  const visibleAlerts = showHidden ? alerts : alerts.filter((a) => !a.is_hidden);
+  const hiddenCount = alerts.filter((a) => a.is_hidden).length;
+
   return (
     <section className="mt-6 rounded-2xl bg-white p-6 shadow-md">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-        <Bell className="w-5 h-5 text-teal-600" />
-        Mis alertas ({alerts.length})
-      </h3>
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <Bell className="w-5 h-5 text-teal-600" />
+          Mis alertas ({visibleAlerts.length})
+        </h3>
+        {hiddenCount > 0 &&
+          (showHidden ? (
+            <button
+              type="button"
+              onClick={() => setShowHidden(false)}
+              className="text-sm text-gray-600 hover:text-gray-800 inline-flex items-center gap-1"
+            >
+              <EyeOff className="w-4 h-4" />
+              Ocultar las ocultas
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowHidden(true)}
+              className="text-sm text-gray-600 hover:text-gray-800 inline-flex items-center gap-1"
+            >
+              <Eye className="w-4 h-4" />
+              Ver ocultas ({hiddenCount})
+            </button>
+          ))}
+      </div>
 
       {isLoading ? (
         <div className="flex flex-col items-center justify-center gap-3 text-gray-600 py-12">
@@ -315,9 +360,23 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
             </p>
           </div>
         </div>
+      ) : visibleAlerts.length === 0 ? (
+        <div className="rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 p-8 flex flex-col items-center justify-center gap-4 text-center border border-gray-100">
+          <div className="w-16 h-16 rounded-full bg-teal-100 flex items-center justify-center">
+            <Bell className="w-8 h-8 text-teal-600" />
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 mb-1">
+              Todo tranquilo por aquí
+            </h4>
+            <p className="text-sm text-gray-600 max-w-md">
+              Todas tus alertas están ocultas. Pulsa 'Ver ocultas' para mostrarlas.
+            </p>
+          </div>
+        </div>
       ) : (
         <ul className="space-y-4">
-          {alerts.map((alert) => {
+          {visibleAlerts.map((alert) => {
             const styles = getSeverityStyles(alert.severity);
             const cardBg = alert.is_read
               ? 'bg-gray-50 border-gray-200 opacity-70'
@@ -328,7 +387,9 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
             return (
               <li
                 key={alert.id}
-                className={`rounded-xl border p-4 transition-colors ${cardBg}`}
+                className={`rounded-xl border p-4 transition-colors ${cardBg}${
+                  alert.is_hidden ? ' opacity-60' : ''
+                }`}
               >
                 <div className="flex items-start gap-3">
                   <span
@@ -367,6 +428,19 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
                           Marcar como leída
                         </button>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleHidden(alert.id, alert.is_hidden)}
+                        className="text-sm text-gray-600 hover:text-gray-800 font-medium inline-flex items-center gap-1"
+                      >
+                        {alert.is_hidden ? (
+                          <Eye className="w-4 h-4" />
+                        ) : (
+                          <EyeOff className="w-4 h-4" />
+                        )}
+                        {alert.is_hidden ? 'Mostrar' : 'Ocultar'}
+                      </button>
 
                       <button
                         type="button"
