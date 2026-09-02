@@ -8,6 +8,7 @@ import {
   Clipboard,
   Check,
   Loader2,
+  Trash2,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -197,6 +198,26 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
     setGeneratingReplyFor(null);
   };
 
+  const handleDeleteAlert = async (alertId: string) => {
+    const confirmed = window.confirm(
+      '¿Seguro que quieres eliminar esta alerta? Esta acción no se puede deshacer.'
+    );
+    if (!confirmed) return;
+
+    const previousAlerts = alerts;
+    setAlerts((prev) => prev.filter((a) => a.id !== alertId));
+
+    const { error: deleteError } = await supabase
+      .from('business_alerts')
+      .delete()
+      .eq('id', alertId);
+
+    if (deleteError) {
+      console.error('Error al eliminar la alerta:', deleteError);
+      setAlerts(previousAlerts);
+    }
+  };
+
   const handleCopyReply = async (alertId: string, text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -289,6 +310,15 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
                           Marcar como leída
                         </button>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAlert(alert.id)}
+                        className="text-sm text-red-600 hover:text-red-800 font-medium inline-flex items-center gap-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Eliminar
+                      </button>
 
                       {alert.alert_type === 'new_review' && !alert.suggested_reply && (
                         <button
