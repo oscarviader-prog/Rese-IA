@@ -94,12 +94,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     const isCustomLocation = queryHasLocation(searchQuery);
     let finalSearchQuery = searchQuery;
 
-    // Append profile location ONLY if no location was specified in the search bar
     if (!isCustomLocation && profileCity) {
       finalSearchQuery = `${searchQuery} ${profileCity}`;
     }
-
-    console.log('Query original:', searchQuery, '| Ubicación perfil:', isCustomLocation ? 'Especificada en texto' : profileCity, '| Query enviada:', finalSearchQuery);
 
     try {
       const { data, error } = await supabase.functions.invoke('search-places', {
@@ -159,7 +156,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     <div ref={searchContainerRef} className={`relative w-full ${className}`}>
       {/* Search Bar Input Container */}
       <div className="relative flex items-center">
-        <Search className="w-4 h-4 absolute left-3.5 text-cyan-400 pointer-events-none" />
+        <Search className="w-4 h-4 absolute left-3.5 text-gray-400 pointer-events-none" />
         
         <input
           type="text"
@@ -168,21 +165,21 @@ export const SearchBar: React.FC<SearchBarProps> = ({
           onFocus={() => {
             if (query.trim().length >= 2) setIsOpen(true);
           }}
-          placeholder={profileCity ? `${placeholder} (Ubicación perfil: ${profileCity})` : placeholder}
-          className="w-full bg-slate-900/90 text-white placeholder-slate-400 text-sm rounded-xl pl-10 pr-10 py-3 border border-cyan-500/40 focus:border-[#00f2ff] focus:ring-1 focus:ring-[#00f2ff] focus:outline-none transition-all shadow-[0_0_15px_rgba(0,242,255,0.08)]"
+          placeholder={profileCity ? `${placeholder} (${profileCity})` : placeholder}
+          className="w-full bg-white text-gray-900 placeholder-gray-400 text-sm rounded-lg pl-10 pr-10 py-2.5 border border-gray-300 focus:border-teal-600 focus:ring-2 focus:ring-teal-100 focus:outline-none transition-all"
         />
 
         <div className="absolute right-3 flex items-center gap-1.5">
           {loading ? (
-            <Loader2 className="w-4 h-4 text-[#00f2ff] animate-spin" />
+            <Loader2 className="w-4 h-4 text-teal-600 animate-spin" />
           ) : query ? (
             <button
               type="button"
               onClick={handleClear}
-              className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               title="Limpiar búsqueda"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           ) : null}
         </div>
@@ -190,28 +187,28 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
       {/* Autocomplete Results Dropdown */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-3 z-[100] w-full bg-slate-950/98 backdrop-blur-xl border-2 border-cyan-400/60 rounded-2xl shadow-[0_20px_70px_rgba(0,0,0,0.95)] overflow-hidden animate-fadeIn">
+        <div className="absolute left-0 right-0 top-full mt-3 z-[100] w-full bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden">
           {results.length > 0 ? (
             <div className="p-3 sm:p-4">
-              <div className="px-3 py-2 text-xs font-mono-code font-bold text-cyan-300 uppercase tracking-wider flex items-center justify-between border-b border-cyan-500/30 pb-3 mb-3">
+              <div className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between border-b border-gray-100 pb-3 mb-3">
                 <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-[#00f2ff]" />
-                  <span>RESULTADOS DE GOOGLE PLACES</span>
+                  <Building2 className="w-4 h-4 text-teal-600" />
+                  <span>Resultados de Google Places</span>
                   {profileCity && (
-                    <span className="hidden md:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-slate-800 text-cyan-200 border border-slate-700 normal-case font-normal">
-                      <User className="w-3 h-3 text-cyan-400" />
-                      {hasExplicitLoc ? 'Ubicación en búsqueda' : `Perfil: ${profileCity}`}
+                    <span className="hidden md:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 normal-case font-normal">
+                      <User className="w-3 h-3 text-teal-500" />
+                      {hasExplicitLoc ? 'Ubicación en búsqueda' : `${profileCity}`}
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 rounded-full bg-cyan-900/80 text-[#00f2ff] border border-cyan-400/50 text-xs font-bold">
+                  <span className="px-3 py-1 rounded-full bg-teal-50 text-teal-700 border border-teal-200 text-xs font-semibold">
                     {results.length} encontrados
                   </span>
                   <button
                     type="button"
                     onClick={() => setIsOpen(false)}
-                    className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                    className="p-1 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
                     title="Cerrar resultados"
                   >
                     <X className="w-4 h-4" />
@@ -219,7 +216,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 </div>
               </div>
 
-              <div className="max-h-[500px] overflow-y-auto space-y-2.5 pr-1 custom-scrollbar">
+              <div className="max-h-[500px] overflow-y-auto space-y-2.5 pr-1">
                 {results.map((place) => {
                   const name = place.displayName?.text || 'Negocio';
                   const address = place.formattedAddress || 'Sin dirección';
@@ -230,7 +227,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                   return (
                     <div
                       key={place.id}
-                      className="w-full p-4 rounded-xl text-left bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-[#00f2ff] hover:shadow-[0_0_20px_rgba(0,242,255,0.2)] transition-all group flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
+                      className="w-full p-4 rounded-xl text-left bg-white hover:bg-teal-50/40 border border-gray-200 hover:border-teal-300 transition-all group flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4"
                     >
                       <button
                         type="button"
@@ -239,41 +236,41 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                       >
                         <div className="space-y-1.5 flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-extrabold text-base sm:text-lg text-white group-hover:text-[#00f2ff] transition-colors leading-snug">
+                            <span className="font-extrabold text-base sm:text-lg text-gray-900 group-hover:text-teal-700 transition-colors leading-snug">
                               {name}
                             </span>
-                            <span className="px-2.5 py-0.5 rounded-md text-[11px] font-mono-code bg-cyan-950/90 text-cyan-200 border border-cyan-800/80 font-semibold shrink-0">
+                            <span className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700 border border-gray-200 shrink-0">
                               {category}
                             </span>
                           </div>
 
-                          <p className="text-xs sm:text-sm text-slate-300 flex items-start gap-2 leading-relaxed">
-                            <MapPin className="w-4 h-4 text-[#00f2ff] shrink-0 mt-0.5" />
+                          <p className="text-xs sm:text-sm text-gray-600 flex items-start gap-2 leading-relaxed">
+                            <MapPin className="w-4 h-4 text-teal-500 shrink-0 mt-0.5" />
                             <span className="break-words">{address}</span>
                           </p>
                         </div>
                       </button>
 
-                      <div className="flex flex-row items-center justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/10">
+                      <div className="flex flex-row items-center justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
                         {rating !== undefined ? (
                           <div className="flex flex-col items-start sm:items-end">
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 text-sm font-mono-code font-extrabold shadow-sm">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold">
                               <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                               {rating}
                             </span>
                             {userCount !== undefined && (
-                              <span className="text-[11px] font-mono-code text-slate-400 mt-1">
+                              <span className="text-[11px] font-medium text-gray-400 mt-1">
                                 {userCount.toLocaleString('es-ES')} reseñas
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-500 italic">Sin valoración</span>
+                          <span className="text-xs text-gray-400 italic">Sin valoración</span>
                         )}
 
                         <FavoriteButton place={place} />
 
-                        <span className="text-xs font-mono-code text-[#00f2ff] opacity-0 group-hover:opacity-100 transition-opacity font-bold hidden sm:inline-block mt-2">
+                        <span className="text-xs font-semibold text-teal-700 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:inline-block mt-2">
                           Seleccionar →
                         </span>
                       </div>
@@ -284,13 +281,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             </div>
           ) : (
             <div className="p-8 text-center space-y-3">
-              <Building2 className="w-10 h-10 text-slate-600 mx-auto" />
-              <p className="text-sm font-mono-code text-slate-300">
+              <Building2 className="w-10 h-10 text-gray-300 mx-auto" />
+              <p className="text-sm font-medium text-gray-700">
                 Sin resultados para "{query}".
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-sm text-gray-500">
                 {profileCity && !hasExplicitLoc
-                  ? `Se buscó con tu ciudad de perfil (${profileCity}). Puedes especificar otra ubicación en tu búsqueda (ej: "${query} Tenerife").`
+                  ? `Se buscó con ${profileCity}. Puedes especificar otra ubicación (ej: "${query} Tenerife").`
                   : 'Prueba a escribir el nombre del local o tipo de negocio.'}
               </p>
             </div>
@@ -300,4 +297,3 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     </div>
   );
 };
-

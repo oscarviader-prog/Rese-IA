@@ -74,7 +74,10 @@ function MainApp() {
   };
 
   const handleSelectPlace = (placeId: string, place?: PlaceResult) => {
-    setSelectedPlaceId(placeId);
+    // El flujo de consumidor muestra la ficha del negocio integrada directamente
+    // debajo del buscador (ver ConsumerView). El modal global queda disponible
+    // (componente PlaceDetailModal intacto) para cualquier otro uso que lo requiera,
+    // pero ya no se abre al seleccionar un establecimiento desde el consumidor.
     if (place) {
       setSelectedPlace(place);
     }

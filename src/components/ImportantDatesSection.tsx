@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PastelCard } from './PastelCard';
 import {
   getConsumerImportantDates,
   addImportantDate,
@@ -19,12 +18,11 @@ import {
   Loader2,
   Trash2,
   Pencil,
-  ChevronDown,
-  ChevronUp,
   AlertTriangle,
   Sparkles,
   CheckCircle2,
   Bell,
+  Calendar,
 } from 'lucide-react';
 import { PlaceResult } from './SearchBar';
 
@@ -32,7 +30,6 @@ interface ImportantDatesSectionProps {
   userId?: string;
   zone?: string;
   onViewPlace?: (placeId: string, place?: PlaceResult) => void;
-  /** Para que un banner externo pueda abrir las recomendaciones de una fecha concreta. */
   autoOpen?: { dateId: string; nonce: number } | null;
 }
 
@@ -54,13 +51,17 @@ const inputToFormValues = (d: ImportantDate): ImportantDateFormValues => ({
   gustos: d.gustos ?? [],
 });
 
+/**
+ * Fechas importantes del consumidor. Siempre abierto (sin desplegable), con la
+ * estética de la parte de empresa. Conserva la lógica de listar, añadir, editar,
+ * eliminar, recordatorios y recomendaciones por ocasión.
+ */
 export const ImportantDatesSection: React.FC<ImportantDatesSectionProps> = ({
   userId,
   zone,
   onViewPlace,
   autoOpen,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [dates, setDates] = useState<ImportantDate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -100,7 +101,6 @@ export const ImportantDatesSection: React.FC<ImportantDatesSectionProps> = ({
       const target = dates.find((d) => d.id === autoOpen.dateId);
       if (target) {
         setActiveRecommendation(target);
-        setIsOpen(true);
         setMode('list');
       }
     }
@@ -172,315 +172,297 @@ export const ImportantDatesSection: React.FC<ImportantDatesSectionProps> = ({
   };
 
   return (
-    <PastelCard variant="darker" className="border-2 border-cyan-500/40 p-0 overflow-hidden">
-      {/* Toggle Header */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-sky-200/50 transition-colors cursor-pointer select-none"
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg bg-cyan-950 text-[#00f2ff]">
-            <CalendarHeart className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-mono-code font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              Mis Fechas Importantes
-              <span className="px-2 py-0.5 rounded-full bg-cyan-950 text-[#00f2ff] text-[11px] font-bold font-mono-code">
-                {dates.length}
+    <section className="rounded-2xl bg-white p-6 shadow-md">
+      {/* Header */}
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="p-2 rounded-lg bg-teal-50 text-teal-700">
+          <CalendarHeart className="w-5 h-5" />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            Mis Fechas Importantes
+            <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-xs font-semibold">
+              {dates.length}
+            </span>
+            {reminders.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-semibold border border-amber-200">
+                {reminders.length} muy pronto
               </span>
-              {reminders.length > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[11px] font-bold font-mono-code border border-amber-300">
-                  {reminders.length} muy pronto
+            )}
+          </h3>
+          <p className="text-sm text-gray-500">
+            Guarda fechas señaladas y sus gustos para recibir recomendaciones
+          </p>
+        </div>
+      </div>
+
+      {!hasUserId ? (
+        <p className="text-sm text-gray-400 italic py-3 text-center">
+          Inicia sesión como consumidor para guardar tus fechas importantes.
+        </p>
+      ) : activeRecommendation ? (
+        <OccasionRecommendations
+          date={activeRecommendation}
+          zone={zone}
+          onBack={() => setActiveRecommendation(null)}
+          onViewPlace={onViewPlace}
+        />
+      ) : isLoading ? (
+        <div className="flex items-center justify-center py-6 text-gray-500">
+          <Loader2 className="w-5 h-5 text-teal-600 animate-spin" />
+          <span className="ml-2 text-sm">Cargando tus fechas...</span>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Reminder banner (a 7 días) */}
+          {reminders.length > 0 && (
+            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+              <div className="flex items-center gap-2 mb-2">
+                <Bell className="w-4 h-4 text-amber-700" />
+                <span className="text-sm font-semibold text-amber-800">
+                  Recordatorio · ¡muy pronto!
                 </span>
-              )}
-            </h3>
-            <p className="text-[11px] font-mono-code text-slate-600">
-              Guarda fechas señaladas y sus gustos para recibir recomendaciones
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono-code font-bold text-cyan-800 hidden sm:inline">
-            {isOpen ? 'Ocultar' : 'Gestionar'}
-          </span>
-          <div className="p-1 rounded-lg bg-sky-200 text-slate-800">
-            {isOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-          </div>
-        </div>
-      </button>
-
-      {/* Content */}
-      {isOpen && (
-        <div className="p-5 border-t border-sky-300 bg-white/90 space-y-4 animate-in slide-in-from-top-2 duration-200">
-          {!hasUserId ? (
-            <p className="text-xs font-mono-code text-slate-500 italic py-3 text-center">
-              Inicia sesión como consumidor para guardar tus fechas importantes.
-            </p>
-          ) : activeRecommendation ? (
-            <OccasionRecommendations
-              date={activeRecommendation}
-              zone={zone}
-              onBack={() => setActiveRecommendation(null)}
-              onViewPlace={onViewPlace}
-            />
-          ) : isLoading ? (
-            <div className="flex items-center justify-center py-6 text-slate-500">
-              <Loader2 className="w-5 h-5 text-cyan-800 animate-spin" />
-              <span className="ml-2 text-xs font-mono-code">Cargando tus fechas...</span>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Reminder banner (a 7 días) */}
-              {reminders.length > 0 && (
-                <div className="p-4 rounded-xl bg-amber-50 border border-amber-300">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Bell className="w-4 h-4 text-amber-700" />
-                    <span className="text-xs font-mono-code font-bold uppercase text-amber-800">
-                      Recordatorio · ¡muy pronto!
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    {reminders.map((d) => (
-                      <div
-                        key={d.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-white border border-amber-200"
-                      >
-                        <div>
-                          <p className="text-sm font-bold text-slate-900">{d.name}</p>
-                          <p className="text-xs font-mono-code text-slate-600">
-                            Se celebra el {formattedDate(d)}{' '}
-                            {nextOccurrence(d, new Date())
-                              ? `(faltan 7 días)`
-                              : ''}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setActiveRecommendation(d)}
-                          className="px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-mono-code font-bold transition-all cursor-pointer shrink-0"
-                        >
-                          Ver recomendaciones para esta ocasión
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Section header with Add button */}
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-mono-code font-bold uppercase tracking-wider text-slate-800">
-                  {mode === 'list' ? 'Tus fechas guardadas' : mode === 'add' ? 'Nueva fecha' : 'Editar fecha'}
-                </h4>
-                {mode === 'list' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('add');
-                      setEditing(null);
-                      setMessage(null);
-                    }}
-                    className="px-3.5 py-2 rounded-xl bg-[#0F766E] hover:bg-[#0d665f] text-white text-xs font-mono-code font-bold transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Añadir fecha
-                  </button>
-                )}
               </div>
-
-              {/* Add / Edit form */}
-              {mode === 'add' && (
-                <ImportantDateForm
-                  key="add"
-                  submitting={submitting}
-                  error={message?.type === 'error' ? message.text : null}
-                  onSubmit={handleSubmit}
-                  onCancel={closeForm}
-                />
-              )}
-              {mode === 'edit' && editing && (
-                <ImportantDateForm
-                  key={editing.id}
-                  initial={inputToFormValues(editing)}
-                  submitting={submitting}
-                  error={message?.type === 'error' ? message.text : null}
-                  onSubmit={handleSubmit}
-                  onCancel={closeForm}
-                />
-              )}
-
-              {/* List / empty state */}
-              {mode === 'list' &&
-                (dates.length === 0 ? (
-                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
-                    <Sparkles className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                    <p className="text-sm font-sans-ui font-bold text-slate-800 mb-1">
-                      No tienes fechas importantes guardadas todavía
-                    </p>
-                    <p className="text-xs font-mono-code text-slate-500 mb-3">
-                      Añade una fecha (aniversario, cumpleaños, ocasiones especiales) con sus
-                      gustos para recibir recomendaciones cuando se acerque.
-                    </p>
+              <div className="space-y-2">
+                {reminders.map((d) => (
+                  <div
+                    key={d.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg bg-white border border-amber-200"
+                  >
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">{d.name}</p>
+                      <p className="text-sm text-gray-600">
+                        Se celebra el {formattedDate(d)}{' '}
+                        {nextOccurrence(d, new Date()) ? '(faltan 7 días)' : ''}
+                      </p>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        setMode('add');
-                        setEditing(null);
-                        setMessage(null);
-                      }}
-                      className="px-4 py-2 rounded-xl bg-[#0F766E] hover:bg-[#0d665f] text-white text-xs font-mono-code font-bold transition-all cursor-pointer shadow-sm flex items-center gap-1.5 mx-auto"
+                      onClick={() => setActiveRecommendation(d)}
+                      className="bg-amber-600 hover:bg-amber-500 text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors cursor-pointer shrink-0"
                     >
-                      <Plus className="w-4 h-4" />
-                      Añadir fecha
+                      Ver recomendaciones para esta ocasión
                     </button>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                    {dates.map((d) => {
-                      const labels = gustoLabels(d.gustos);
-                      return (
-                        <div
-                          key={d.id}
-                          className="p-4 rounded-xl bg-white border border-sky-300 shadow-sm hover:border-cyan-500 transition-all"
-                        >
-                          <div className="flex items-start justify-between gap-2 mb-1.5">
-                            <div className="min-w-0">
-                              <h5 className="font-extrabold text-sm text-slate-900 truncate">{d.name}</h5>
-                              <span className="flex items-center gap-1.5 text-[11px] font-mono-code text-slate-500 mt-0.5">
-                                <CalendarHeart className="w-3.5 h-3.5 text-cyan-600" />
-                                {formattedDate(d)}
-                                <span
-                                  className={`px-1.5 py-0.5 rounded text-[9px] font-mono-code font-bold uppercase border ${
-                                    d.occurrence_type === 'anual'
-                                      ? 'bg-cyan-50 text-cyan-700 border-cyan-200'
-                                      : 'bg-violet-50 text-violet-700 border-violet-200'
-                                  }`}
-                                >
-                                  {d.occurrence_type === 'anual' ? 'Anual' : 'Única'}
-                                </span>
-                              </span>
-                            </div>
-                          </div>
-
-                          {labels.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mb-3 mt-2">
-                              {labels.map((l) => (
-                                <span
-                                  key={l}
-                                  className="px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-mono-code font-bold text-slate-700 border border-slate-200"
-                                >
-                                  {l}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-
-                          <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
-                            {isReminderDue(d, new Date()) && (
-                              <button
-                                type="button"
-                                onClick={() => setActiveRecommendation(d)}
-                                className="px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-200 text-[11px] font-mono-code font-bold transition-all flex items-center gap-1 cursor-pointer"
-                                title="Ver recomendaciones para esta ocasión"
-                              >
-                                <Bell className="w-3.5 h-3.5" />
-                                Recomendaciones
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => startEdit(d)}
-                              className="px-3 py-1.5 rounded-lg bg-cyan-950 hover:bg-slate-900 text-[#00f2ff] text-[11px] font-mono-code font-bold transition-all flex items-center gap-1 cursor-pointer shadow-sm"
-                              title="Editar fecha"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                              Editar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setConfirmDelete(d)}
-                              disabled={deletingId === d.id}
-                              className="px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-mono-code font-bold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                              title="Eliminar fecha"
-                            >
-                              {deletingId === d.id ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Trash2 className="w-3.5 h-3.5" />
-                              )}
-                              Eliminar
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
                 ))}
+              </div>
+            </div>
+          )}
 
-              {/* Delete confirmation */}
-              {confirmDelete && (
-                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-rose-100 text-rose-600 border border-rose-200">
-                      <AlertTriangle className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1">
-                      <h5 className="font-bold text-sm text-slate-900">
-                        ¿Eliminar la fecha "{confirmDelete.name}"?
-                      </h5>
-                      <p className="text-xs font-mono-code text-slate-600 mt-0.5">
-                        Se eliminará esta fecha y sus gustos asociados. Ya no generará
-                        recordatorios ni recomendaciones. Esta acción no puede deshacerse.
-                      </p>
-                      <div className="flex items-center gap-2 mt-3">
+          {/* Section header with Add button */}
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold text-gray-800">
+              {mode === 'list'
+                ? 'Tus fechas guardadas'
+                : mode === 'add'
+                ? 'Nueva fecha'
+                : 'Editar fecha'}
+            </h4>
+            {mode === 'list' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('add');
+                  setEditing(null);
+                  setMessage(null);
+                }}
+                className="inline-flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Añadir fecha
+              </button>
+            )}
+          </div>
+
+          {/* Add / Edit form */}
+          {mode === 'add' && (
+            <ImportantDateForm
+              key="add"
+              submitting={submitting}
+              error={message?.type === 'error' ? message.text : null}
+              onSubmit={handleSubmit}
+              onCancel={closeForm}
+            />
+          )}
+          {mode === 'edit' && editing && (
+            <ImportantDateForm
+              key={editing.id}
+              initial={inputToFormValues(editing)}
+              submitting={submitting}
+              error={message?.type === 'error' ? message.text : null}
+              onSubmit={handleSubmit}
+              onCancel={closeForm}
+            />
+          )}
+
+          {/* List / empty state */}
+          {mode === 'list' &&
+            (dates.length === 0 ? (
+              <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 text-center">
+                <Calendar className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm font-bold text-gray-800 mb-1">
+                  No tienes fechas importantes guardadas todavía
+                </p>
+                <p className="text-sm text-gray-500 mb-3">
+                  Añade una fecha (aniversario, cumpleaños, ocasiones especiales) con sus
+                  gustos para recibir recomendaciones cuando se acerque.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('add');
+                    setEditing(null);
+                    setMessage(null);
+                  }}
+                  className="inline-flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors cursor-pointer mx-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  Añadir fecha
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {dates.map((d) => {
+                  const labels = gustoLabels(d.gustos);
+                  return (
+                    <div
+                      key={d.id}
+                      className="p-4 rounded-xl bg-white border border-gray-200 hover:border-teal-300 transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <div className="min-w-0">
+                          <h5 className="font-extrabold text-sm text-gray-900 truncate">{d.name}</h5>
+                          <span className="flex items-center gap-1.5 text-sm text-gray-500 mt-0.5">
+                            <CalendarHeart className="w-3.5 h-3.5 text-teal-600" />
+                            {formattedDate(d)}
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase border ${
+                                d.occurrence_type === 'anual'
+                                  ? 'bg-teal-50 text-teal-700 border-teal-200'
+                                  : 'bg-violet-50 text-violet-700 border-violet-200'
+                              }`}
+                            >
+                              {d.occurrence_type === 'anual' ? 'Anual' : 'Única'}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {labels.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-3 mt-2">
+                          {labels.map((l) => (
+                            <span
+                              key={l}
+                              className="px-2 py-0.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700 border border-gray-200"
+                            >
+                              {l}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-end gap-3 pt-1 border-t border-gray-100">
+                        {isReminderDue(d, new Date()) && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveRecommendation(d)}
+                            className="inline-flex items-center gap-1.5 text-amber-700 hover:text-amber-800 font-medium text-sm cursor-pointer"
+                            title="Ver recomendaciones para esta ocasión"
+                          >
+                            <Bell className="w-4 h-4" />
+                            Recomendaciones
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={handleDelete.bind(null, confirmDelete)}
-                          disabled={deletingId === confirmDelete.id}
-                          className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white text-xs font-mono-code font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                          onClick={() => startEdit(d)}
+                          className="inline-flex items-center gap-1.5 text-teal-700 hover:underline font-medium text-sm cursor-pointer"
+                          title="Editar fecha"
                         >
-                          {deletingId === confirmDelete.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="w-3.5 h-3.5" />
-                          )}
-                          Sí, eliminar
+                          <Pencil className="w-4 h-4" />
+                          Editar
                         </button>
                         <button
                           type="button"
-                          onClick={() => setConfirmDelete(null)}
-                          className="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-mono-code font-bold transition-all cursor-pointer"
+                          onClick={() => setConfirmDelete(d)}
+                          disabled={deletingId === d.id}
+                          className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 font-medium text-sm cursor-pointer disabled:opacity-50"
+                          title="Eliminar fecha"
                         >
-                          Cancelar
+                          {deletingId === d.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                          Eliminar
                         </button>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            ))}
+
+          {/* Delete confirmation */}
+          {confirmDelete && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-red-100 text-red-600 border border-red-200">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <h5 className="font-bold text-sm text-gray-900">
+                    ¿Eliminar la fecha "{confirmDelete.name}"?
+                  </h5>
+                  <p className="text-sm text-gray-600 mt-0.5">
+                    Se eliminará esta fecha y sus gustos asociados. Esta acción no puede deshacerse.
+                  </p>
+                  <div className="flex items-center gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={handleDelete.bind(null, confirmDelete)}
+                      disabled={deletingId === confirmDelete.id}
+                      className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5"
+                    >
+                      {deletingId === confirmDelete.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                      Sí, eliminar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(null)}
+                      className="border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium text-sm py-2 px-4 rounded-lg transition-colors cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
                   </div>
                 </div>
-              )}
+              </div>
+            </div>
+          )}
 
-              {/* Feedback message */}
-              {message && mode === 'list' && (
-                <div
-                  className={`flex items-start gap-2 p-3 rounded-xl border text-xs font-sans-ui ${
-                    message.type === 'success'
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                      : 'bg-rose-50 border-rose-200 text-rose-800'
-                  }`}
-                >
-                  {message.type === 'success' ? (
-                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                  ) : (
-                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                  )}
-                  <span>{message.text}</span>
-                </div>
+          {/* Feedback message */}
+          {message && mode === 'list' && (
+            <div
+              className={`flex items-start gap-2 p-3 rounded-xl border text-sm ${
+                message.type === 'success'
+                  ? 'bg-green-50 border-green-200 text-green-800'
+                  : 'bg-red-50 border-red-200 text-red-800'
+              }`}
+            >
+              {message.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               )}
+              <span>{message.text}</span>
             </div>
           )}
         </div>
       )}
-    </PastelCard>
+    </section>
   );
 };

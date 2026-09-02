@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PastelCard } from './PastelCard';
 import {
   Bell,
   Moon,
   CheckCircle2,
   AlertTriangle,
-  ChevronDown,
-  ChevronUp,
   RotateCcw,
   Loader2,
   CalendarDays,
   AtSign,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   CONSUMER_ALERTS,
@@ -44,18 +42,11 @@ const FREQUENCY_OPTIONS: { value: AlertFrequency; label: string }[] = [
 ];
 
 /**
- * Sección "Alertas y notificaciones" del consumidor.
- *
- * Permite activar/desactivar cada alerta (guardado automático), elegir canal
- * (in_app/email/ambas) y frecuencia (immediate/daily/weekly), configurar el
- * modo "No molestar" con fechas, y restaurar los valores predeterminados.
- *
- * Nota honesta: el canal "email" queda configurado pero su envío real requiere
- * una integración de proveedor de email que hoy no existe en el cliente (no se
- * envían correos ficticios). El canal "in_app" es el funcional hoy.
+ * Sección "Alertas y notificaciones" del consumidor. Siempre abierta (sin
+ * desplegable), con la estética de la parte de empresa. Conserva toda la
+ * lógica de activar/desactivar alertas, canales, frecuencia y no molestar.
  */
 export const AlertSettingsSection: React.FC<AlertSettingsSectionProps> = ({ userId }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [configs, setConfigs] = useState<ConsumerAlertConfigRow[]>([]);
   const [noMolestar, setNoMolestar] = useState<NoMolestarRow | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -227,320 +218,309 @@ export const AlertSettingsSection: React.FC<AlertSettingsSectionProps> = ({ user
   };
 
   return (
-    <PastelCard variant="darker" className="border-2 border-cyan-500/40 p-0 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-sky-200/50 transition-colors cursor-pointer select-none"
-      >
-        <div className="flex items-center gap-2.5">
-          <div className="p-1.5 rounded-lg bg-cyan-950 text-[#00f2ff]">
-            <Bell className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-mono-code font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              Alertas y notificaciones
-              <span className="px-2 py-0.5 rounded-full bg-cyan-950 text-[#00f2ff] text-[11px] font-bold font-mono-code">
-                {configs.length}
-              </span>
-            </h3>
-            <p className="text-[11px] font-mono-code text-slate-600">
-              Elige qué alertas recibir, por qué canal y con qué frecuencia
-            </p>
-          </div>
+    <section className="rounded-2xl bg-white p-6 shadow-md">
+      {/* Header */}
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="p-2 rounded-lg bg-teal-50 text-teal-700">
+          <Bell className="w-5 h-5" />
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono-code font-bold text-cyan-800 hidden sm:inline">
-            {isOpen ? 'Ocultar' : 'Configurar'}
-          </span>
-          <div className="p-1 rounded-lg bg-sky-200 text-slate-800">
-            {isOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-          </div>
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            Alertas y notificaciones
+            <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-xs font-semibold">
+              {configs.length}
+            </span>
+          </h3>
+          <p className="text-sm text-gray-500">
+            Elige qué alertas recibir, por qué canal y con qué frecuencia
+          </p>
         </div>
-      </button>
+      </div>
 
-      {isOpen && (
-        <div className="p-5 border-t border-sky-300 bg-white/90 space-y-4 animate-in slide-in-from-top-2 duration-200">
-          {!hasUserId ? (
-            <p className="text-xs font-mono-code text-slate-500 italic py-3 text-center">
-              Inicia sesión como consumidor para configurar tus alertas.
-            </p>
-          ) : isLoading ? (
-            <div className="flex items-center justify-center py-6 text-slate-500">
-              <Loader2 className="w-5 h-5 text-cyan-800 animate-spin" />
-              <span className="ml-2 text-xs font-mono-code">Cargando alertas...</span>
-            </div>
-          ) : (
-            <>
-              {/* Lista de alertas */}
-              <div className="space-y-3">
-                {CONSUMER_ALERTS.map((def) => {
-                  const cfg = resolveType(def.type);
-                  return (
-                    <div
-                      key={def.type}
-                      className={`p-4 rounded-xl border transition-all ${
-                        cfg.enabled ? 'bg-white border-sky-300' : 'bg-slate-50 border-slate-200'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className={`font-extrabold text-sm ${cfg.enabled ? 'text-slate-900' : 'text-slate-500'}`}>
-                              {def.label}
-                            </h4>
-                            {!def.hasRealEventSource && (
-                              <span className="px-2 py-0.5 rounded-md text-[10px] font-mono-code bg-amber-100 text-amber-800 border border-amber-300 font-semibold">
-                                Pendiente de integración
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs font-mono-code text-slate-500 mt-1">
-                            {def.description}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {savingType === def.type && (
-                            <Loader2 className="w-4 h-4 text-cyan-700 animate-spin" />
-                          )}
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={cfg.enabled}
-                            aria-label={`${def.label}: ${cfg.enabled ? 'activa' : 'inactiva'}`}
-                            onClick={() => handleToggle(def.type, !cfg.enabled)}
-                            disabled={savingType === def.type}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer disabled:opacity-50 focus:outline-none ${
-                              cfg.enabled ? 'bg-[#0F766E]' : 'bg-slate-300'
-                            }`}
-                          >
-                            <span
-                              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                                cfg.enabled ? 'translate-x-5' : 'translate-x-0.5'
-                              }`}
-                            />
-                          </button>
-                        </div>
-                      </div>
-
-                      <p className="text-[11px] font-mono-code text-slate-600 flex items-center gap-1 mt-2">
-                        <span className={`inline-block w-2 h-2 rounded-full ${cfg.enabled ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                        {cfg.enabled ? 'Estado: activa' : 'Estado: inactiva'} · frecuencia {FREQUENCY_OPTIONS.find((f) => f.value === cfg.frequency)?.label.toLowerCase()}
-                      </p>
-
-                      {cfg.enabled && (
-                        <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
-                          <div>
-                            <p className="text-[11px] font-mono-code font-bold text-slate-700 mb-1.5">
-                              Canales
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {CHANNEL_OPTIONS.map((opt) => {
-                                const active = cfg.channels.includes(opt.value);
-                                return (
-                                  <button
-                                    key={opt.value}
-                                    type="button"
-                                    onClick={() => handleChannelToggle(def.type, opt.value)}
-                                    disabled={savingType === def.type}
-                                    className={`px-3 py-1.5 rounded-lg border text-[11px] font-mono-code font-bold transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5 ${
-                                      active
-                                        ? 'bg-[#0F766E] text-white border-[#0F766E] shadow-sm'
-                                        : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
-                                    }`}
-                                  >
-                                    {opt.value === 'email' ? (
-                                      <AtSign className="w-3.5 h-3.5" />
-                                    ) : (
-                                      <Bell className="w-3.5 h-3.5" />
-                                    )}
-                                    {opt.label}
-                                    {active && <CheckCircle2 className="w-3.5 h-3.5" />}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            {cfg.channels.includes('email') && (
-                              <p className="text-[10px] font-mono-code text-amber-700 mt-1.5">
-                                El canal Email queda configurado, pero requiere la integración de un
-                                proveedor de email para realizar envíos reales (pendiente en el proyecto).
-                              </p>
-                            )}
-                          </div>
-                          <div>
-                            <p className="text-[11px] font-mono-code font-bold text-slate-700 mb-1.5">
-                              Frecuencia
-                            </p>
-                            <div className="flex flex-wrap gap-2">
-                              {FREQUENCY_OPTIONS.map((opt) => {
-                                const active = cfg.frequency === opt.value;
-                                return (
-                                  <button
-                                    key={opt.value}
-                                    type="button"
-                                    onClick={() => handleFrequency(def.type, opt.value)}
-                                    disabled={savingType === def.type}
-                                    className={`px-3 py-1.5 rounded-lg border text-[11px] font-mono-code font-bold transition-all cursor-pointer disabled:opacity-50 ${
-                                      active
-                                        ? 'bg-cyan-700 text-white border-cyan-700 shadow-sm'
-                                        : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
-                                    }`}
-                                  >
-                                    {opt.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* No molestar */}
-              <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-200">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded-lg bg-indigo-200 text-indigo-800">
-                      <Moon className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="font-extrabold text-sm text-slate-900">No molestar</h4>
-                      <p className="text-xs font-mono-code text-slate-500">
-                        Pausa todas tus alertas durante un periodo y reanúdalas automáticamente.
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={dndEnabled}
-                    aria-label="No molestar"
-                    onClick={() => setDndEnabled(!dndEnabled)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
-                      dndEnabled ? 'bg-indigo-600' : 'bg-slate-300'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                        dndEnabled ? 'translate-x-5' : 'translate-x-0.5'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {dndActiveToday && !dndEnabled && (
-                  <p className="text-[11px] font-mono-code text-indigo-700 mt-2 flex items-center gap-1">
-                    <span className="inline-block w-2 h-2 rounded-full bg-indigo-500" />
-                    Activo hoy hasta {noMolestar?.end_date ?? ''}. Se desactivará automáticamente al terminar.
-                  </p>
-                )}
-
-                {dndEnabled && (
-                  <div className="mt-3 pt-3 border-t border-indigo-100 space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <label className="block">
-                        <span className="text-[11px] font-mono-code font-bold text-slate-700">Fecha de inicio</span>
-                        <input
-                          type="date"
-                          value={dndStart}
-                          min={minStart}
-                          onChange={(e) => setDndStart(e.target.value)}
-                          className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-mono-code text-slate-800"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-[11px] font-mono-code font-bold text-slate-700">Fecha de fin</span>
-                        <input
-                          type="date"
-                          value={dndEnd}
-                          min={dndStart || minStart}
-                          onChange={(e) => setDndEnd(e.target.value)}
-                          className="mt-1 w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-mono-code text-slate-800"
-                        />
-                      </label>
-                    </div>
-                    {dndStart && dndEnd && validateNoMolestarDates(dndStart, dndEnd) && (
-                      <p className="text-[11px] font-mono-code text-rose-700">
-                        {validateNoMolestarDates(dndStart, dndEnd)}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {(dndEnabled || (noMolestar?.enabled ?? false)) && (
-                  <div className="mt-3 pt-3 border-t border-indigo-100">
-                    <button
-                      type="button"
-                      onClick={handleSaveNoMolestar}
-                      disabled={savingNoMolestar}
-                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-mono-code font-bold transition-all cursor-pointer shadow-sm flex items-center gap-1.5 disabled:opacity-50"
-                    >
-                      {savingNoMolestar ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Guardando...
-                        </>
-                      ) : (
-                        <>
-                          <CalendarDays className="w-3.5 h-3.5" /> {dndEnabled ? 'Guardar periodo' : 'Desactivar y guardar'}
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Restaurar valores predeterminados */}
-              <div className="flex items-center justify-between gap-3 pt-1">
-                <p className="text-xs font-mono-code text-slate-600 max-w-md">
-                  Puedes volver a la configuración recomendada por ReseñIA.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  disabled={resetting || confirmReset}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-mono-code font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm disabled:opacity-70 ${
-                    confirmReset
-                      ? 'bg-rose-600 hover:bg-rose-700 text-white'
-                      : 'bg-slate-700 hover:bg-slate-800 text-white'
+      {!hasUserId ? (
+        <p className="text-sm text-gray-400 italic py-3 text-center">
+          Inicia sesión como consumidor para configurar tus alertas.
+        </p>
+      ) : isLoading ? (
+        <div className="flex items-center justify-center py-6 text-gray-500">
+          <Loader2 className="w-5 h-5 text-teal-600 animate-spin" />
+          <span className="ml-2 text-sm">Cargando alertas...</span>
+        </div>
+      ) : (
+        <>
+          {/* Lista de alertas */}
+          <div className="space-y-3">
+            {CONSUMER_ALERTS.map((def) => {
+              const cfg = resolveType(def.type);
+              return (
+                <div
+                  key={def.type}
+                  className={`p-4 rounded-xl border transition-all ${
+                    cfg.enabled ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-200'
                   }`}
                 >
-                  {resetting ? (
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className={`font-extrabold text-sm ${cfg.enabled ? 'text-gray-900' : 'text-gray-500'}`}>
+                          {def.label}
+                        </h4>
+                        {!def.hasRealEventSource && (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                            Pendiente de integración
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {def.description}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {savingType === def.type && (
+                        <Loader2 className="w-4 h-4 text-teal-600 animate-spin" />
+                      )}
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={cfg.enabled}
+                        aria-label={`${def.label}: ${cfg.enabled ? 'activa' : 'inactiva'}`}
+                        onClick={() => handleToggle(def.type, !cfg.enabled)}
+                        disabled={savingType === def.type}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer disabled:opacity-50 focus:outline-none ${
+                          cfg.enabled ? 'bg-teal-600' : 'bg-gray-300'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                            cfg.enabled ? 'translate-x-5' : 'translate-x-0.5'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-gray-600 flex items-center gap-1 mt-2">
+                    <span className={`inline-block w-2 h-2 rounded-full ${cfg.enabled ? 'bg-green-500' : 'bg-gray-300'}`} />
+                    {cfg.enabled ? 'Estado: activa' : 'Estado: inactiva'} · frecuencia{' '}
+                    {FREQUENCY_OPTIONS.find((f) => f.value === cfg.frequency)?.label.toLowerCase()}
+                  </p>
+
+                  {cfg.enabled && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-1.5">
+                          Canales
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {CHANNEL_OPTIONS.map((opt) => {
+                            const active = cfg.channels.includes(opt.value);
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => handleChannelToggle(def.type, opt.value)}
+                                disabled={savingType === def.type}
+                                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5 ${
+                                  active
+                                    ? 'bg-teal-600 text-white border-teal-600'
+                                    : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                                }`}
+                              >
+                                {opt.value === 'email' ? (
+                                  <AtSign className="w-4 h-4" />
+                                ) : (
+                                  <Bell className="w-4 h-4" />
+                                )}
+                                {opt.label}
+                                {active && <CheckCircle2 className="w-4 h-4" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {cfg.channels.includes('email') && (
+                          <p className="text-xs text-amber-700 mt-1.5">
+                            El canal Email queda configurado, pero requiere la integración de un
+                            proveedor de email para realizar envíos reales.
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-1.5">
+                          Frecuencia
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {FREQUENCY_OPTIONS.map((opt) => {
+                            const active = cfg.frequency === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => handleFrequency(def.type, opt.value)}
+                                disabled={savingType === def.type}
+                                className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all cursor-pointer disabled:opacity-50 ${
+                                  active
+                                    ? 'bg-teal-600 text-white border-teal-600'
+                                    : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* No molestar */}
+          <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-200 mt-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700">
+                  <Moon className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-gray-900">No molestar</h4>
+                  <p className="text-sm text-gray-500">
+                    Pausa todas tus alertas durante un periodo y reanúdalas automáticamente.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={dndEnabled}
+                aria-label="No molestar"
+                onClick={() => setDndEnabled(!dndEnabled)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer ${
+                  dndEnabled ? 'bg-indigo-600' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                    dndEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {dndActiveToday && !dndEnabled && (
+              <p className="text-sm text-indigo-700 mt-2 flex items-center gap-1">
+                <span className="inline-block w-2 h-2 rounded-full bg-indigo-500" />
+                Activo hoy hasta {noMolestar?.end_date ?? ''}. Se desactivará automáticamente al terminar.
+              </p>
+            )}
+
+            {dndEnabled && (
+              <div className="mt-3 pt-3 border-t border-indigo-100 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="text-sm font-medium text-gray-700">Fecha de inicio</span>
+                    <input
+                      type="date"
+                      value={dndStart}
+                      min={minStart}
+                      onChange={(e) => setDndStart(e.target.value)}
+                      className="mt-1 w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 text-sm"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-gray-700">Fecha de fin</span>
+                    <input
+                      type="date"
+                      value={dndEnd}
+                      min={dndStart || minStart}
+                      onChange={(e) => setDndEnd(e.target.value)}
+                      className="mt-1 w-full bg-white text-gray-900 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-100 text-sm"
+                    />
+                  </label>
+                </div>
+                {dndStart && dndEnd && validateNoMolestarDates(dndStart, dndEnd) && (
+                  <p className="text-sm text-red-700">
+                    {validateNoMolestarDates(dndStart, dndEnd)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {(dndEnabled || (noMolestar?.enabled ?? false)) && (
+              <div className="mt-3 pt-3 border-t border-indigo-100">
+                <button
+                  type="button"
+                  onClick={handleSaveNoMolestar}
+                  disabled={savingNoMolestar}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {savingNoMolestar ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Restaurando...
+                      <Loader2 className="w-4 h-4 animate-spin" /> Guardando...
                     </>
-                  ) : confirmReset ? (
-                    '¿Confirmar restauración?'
                   ) : (
                     <>
-                      <RotateCcw className="w-3.5 h-3.5" /> Restaurar valores predeterminados
+                      <CalendarDays className="w-4 h-4" /> {dndEnabled ? 'Guardar periodo' : 'Desactivar y guardar'}
                     </>
                   )}
                 </button>
               </div>
-            </>
-          )}
+            )}
+          </div>
 
-          {message && (
-            <div
-              className={`flex items-start gap-2 p-3 rounded-xl border text-xs font-sans-ui ${
-                message.type === 'success'
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                  : 'bg-rose-50 border-rose-200 text-rose-800'
+          {/* Restaurar valores predeterminados */}
+          <div className="flex items-center justify-between gap-3 pt-1 mt-3">
+            <p className="text-sm text-gray-600 max-w-md">
+              Puedes volver a la configuración recomendada por ReseñIA.
+            </p>
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={resetting || confirmReset}
+              className={`inline-flex items-center gap-1.5 font-medium text-sm py-2 px-4 rounded-lg transition-colors cursor-pointer disabled:opacity-70 ${
+                confirmReset
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-gray-700 hover:bg-gray-800 text-white'
               }`}
             >
-              {message.type === 'success' ? (
-                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+              {resetting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" /> Restaurando...
+                </>
+              ) : confirmReset ? (
+                '¿Confirmar restauración?'
               ) : (
-                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <>
+                  <RotateCcw className="w-4 h-4" /> Restaurar valores predeterminados
+                </>
               )}
-              <span>{message.text}</span>
-            </div>
+            </button>
+          </div>
+        </>
+      )}
+
+      {message && (
+        <div
+          className={`flex items-start gap-2 p-3 rounded-xl border text-sm mt-4 ${
+            message.type === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+        >
+          {message.type === 'success' ? (
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+          ) : (
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           )}
+          <span>{message.text}</span>
         </div>
       )}
-    </PastelCard>
+
+      <p className="flex items-center gap-1.5 mt-4 text-xs text-gray-400">
+        <ShieldCheck className="w-3.5 h-3.5" />
+        La configuración se guarda automáticamente en tu cuenta de ReseñIA.
+      </p>
+    </section>
   );
 };
