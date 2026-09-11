@@ -15,6 +15,17 @@ export interface PlaceResult {
   primaryTypeDisplayName?: {
     text?: string;
   };
+  /**
+   * Tipo principal del establecimiento (identificador de la Google Places API).
+   * No se solicita actualmente por `search-places`; se deja preparado para que
+   * la capa de categorización lo consuma cuando se exponga en el backend.
+   */
+  primaryType?: string;
+  /**
+   * Lista de tipos del establecimiento devueltos por Google Places. Igual que
+   * `primaryType`, no se solicita todavía por `search-places`.
+   */
+  types?: string[];
 }
 
 interface SearchBarProps {

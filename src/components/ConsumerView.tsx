@@ -9,12 +9,14 @@ import { ImportantDatesSection } from './ImportantDatesSection';
 import { AlertSettingsSection } from './AlertSettingsSection';
 import { FavoriteButton } from './FavoriteButton';
 import { ConsumerChatFloating } from './ConsumerChatFloating';
+import { ConsumerPlaceActions } from './ConsumerPlaceActions';
 import { GooglePlaceDetails, GooglePlaceReview } from './PlaceDetailModal';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { getStoredBookings, saveBooking, cancelBooking } from '../lib/bookings';
 import { getConsumerImportantDates, isReminderDue, nextOccurrence, ImportantDate } from '../lib/importantDates';
 import { shouldNotify } from '../lib/consumerAlerts';
+import { categoriaDePlace } from '../lib/categories';
 import {
   Sparkles,
   PlusCircle,
@@ -227,6 +229,11 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
   const website = placeDetails?.websiteUri;
   const reviews = (placeDetails?.reviews || []) as GooglePlaceReview[];
 
+  // Categoría del establecimiento: centralizada en `categories.ts`. Basada en
+  // los tipos reales de Google Places (`primaryType`/`types`). Mientras estos
+  // campos no se expongan por `search-places`, cae a la categoría genérica.
+  const category = categoriaDePlace(selectedPlace);
+
   const businessCard =
     'bg-white rounded-2xl shadow-md';
   const sectionHeader = 'text-sm font-semibold text-gray-900';
@@ -258,7 +265,7 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
               onSelectPlace={(placeId, place) => {
                 if (onSelectPlace) onSelectPlace(placeId, place);
               }}
-              placeholder="Buscar negocio, restaurante, farmacia, pizza, hotel..."
+              placeholder="Busca un negocio o establecimiento (restaurante, farmacia, hotel, gimnasio...)"
             />
           </div>
         </section>
@@ -272,8 +279,11 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
                   <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
                     {placeName}
                   </h2>
-                  {placeCategory && (
-                    <span className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                  <span className="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+                    {category.label}
+                  </span>
+                  {placeCategory && placeCategory.toLowerCase() !== category.label.toLowerCase() && (
+                    <span className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-gray-100 text-gray-600 border border-gray-200">
                       {placeCategory}
                     </span>
                   )}
@@ -412,14 +422,16 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
               )}
             </div>
 
-            {/* Reservar */}
-            {isConsumerAuthed ? (
-              <div className="mt-6">
-                <h3 className={sectionHeader + ' flex items-center gap-2 mb-3'}>
-                  <Calendar className="w-4 h-4 text-teal-600" />
-                  Reservar en {placeName}
-                </h3>
-                {reserveConfirmed ? (
+            {/* Acciones del establecimiento: la sección y su gating los decide
+                `ConsumerPlaceActions` a partir de la categoría y sus capacidades.
+                `reserva_mesa` es hoy la única capacidad con flujo real; las demás
+                no se muestran, evitando botones ficticios para flujos inexistentes. */}
+            <ConsumerPlaceActions
+              category={category}
+              placeName={placeName}
+              isConsumerAuthed={isConsumerAuthed}
+            >
+              {reserveConfirmed ? (
                   <div className="rounded-xl border border-green-200 bg-green-50 p-5 space-y-3">
                     <div className="flex items-start gap-3">
                       <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0 mt-0.5" />
@@ -539,18 +551,7 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
                     </div>
                   </form>
                 )}
-              </div>
-            ) : (
-              <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-4 flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-gray-100 text-gray-400">
-                  <Calendar className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className={sectionHeader}>Reservar en {placeName}</h3>
-                  <p className={mutedText}>Inicia sesión para reservar mesa en este establecimiento.</p>
-                </div>
-              </div>
-            )}
+            </ConsumerPlaceActions>
           </section>
         ) : (
           <section className="rounded-2xl bg-white py-12 text-center shadow-md">
@@ -642,13 +643,13 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
                         {userBookings.length}
                       </span>
                     </h3>
-                    <p className={mutedText}>Gestiona tus mesas reservadas.</p>
+                    <p className={mutedText}>Gestiona tus reservas.</p>
                   </div>
                 </div>
 
                 {userBookings.length === 0 ? (
                   <p className="text-sm text-gray-400 italic py-4 text-center">
-                    No tienes reservas registradas. Selecciona un negocio arriba para reservar tu mesa.
+                    No tienes reservas registradas. Selecciona un negocio arriba para realizar tu reserva.
                   </p>
                 ) : (
                   <div className="space-y-3">
