@@ -8,6 +8,10 @@ import {
   Clipboard,
   Check,
   Loader2,
+  Trash2,
+  Eye,
+  EyeOff,
+  RefreshCw,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -26,6 +30,7 @@ interface Alert {
   triggered_at: string;
   metadata: Record<string, any> | null;
   suggested_reply: string | null;
+  is_hidden: boolean;
 }
 
 // ==========================================
@@ -113,6 +118,8 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
   const [generatingReplyFor, setGeneratingReplyFor] = useState<string | null>(null);
   const [replyErrorFor, setReplyErrorFor] = useState<Record<string, string>>({});
   const [copiedFor, setCopiedFor] = useState<string | null>(null);
+  const [hiddenReplyFor, setHiddenReplyFor] = useState<Set<string>>(new Set());
+  const [showHidden, setShowHidden] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -197,6 +204,26 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
     setGeneratingReplyFor(null);
   };
 
+  const handleDeleteAlert = async (alertId: string) => {
+    const confirmed = window.confirm(
+      '¿Seguro que quieres eliminar esta alerta? Esta acción no se puede deshacer.'
+    );
+    if (!confirmed) return;
+
+    const previousAlerts = alerts;
+    setAlerts((prev) => prev.filter((a) => a.id !== alertId));
+
+    const { error: deleteError } = await supabase
+      .from('business_alerts')
+      .delete()
+      .eq('id', alertId);
+
+    if (deleteError) {
+      console.error('Error al eliminar la alerta:', deleteError);
+      setAlerts(previousAlerts);
+    }
+  };
+
   const handleCopyReply = async (alertId: string, text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -207,12 +234,108 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
     }
   };
 
+  const handleToggleReplyVisibility = (alertId: string) => {
+    setHiddenReplyFor((prev) => {
+      const next = new Set(prev);
+      if (next.has(alertId)) next.delete(alertId);
+      else next.add(alertId);
+      return next;
+    });
+  };
+
+  const handleRegenerateReply = async (alertId: string) => {
+    setGeneratingReplyFor(alertId);
+    setReplyErrorFor((prev) => {
+      const next = { ...prev };
+      delete next[alertId];
+      return next;
+    });
+
+    const { error: clearError } = await supabase
+      .from('business_alerts')
+      .update({ suggested_reply: null })
+      .eq('id', alertId);
+
+    if (clearError) {
+      console.error('Error al borrar la respuesta sugerida anterior:', clearError);
+    }
+
+    setAlerts((prev) =>
+      prev.map((a) => (a.id === alertId ? { ...a, suggested_reply: null } : a))
+    );
+
+    const { data, error: invokeError } = await supabase.functions.invoke(
+      'generate-review-reply',
+      { body: { alertId } }
+    );
+
+    if (invokeError || !data?.success || !data?.suggested_reply) {
+      console.error('Error al regenerar la respuesta sugerida:', invokeError ?? data);
+      setReplyErrorFor((prev) => ({
+        ...prev,
+        [alertId]: 'No se pudo regenerar la respuesta sugerida. Inténtalo de nuevo.',
+      }));
+      setGeneratingReplyFor(null);
+      return;
+    }
+
+    setAlerts((prev) =>
+      prev.map((a) =>
+        a.id === alertId ? { ...a, suggested_reply: data.suggested_reply } : a
+      )
+    );
+    setGeneratingReplyFor(null);
+  };
+
+  const handleToggleHidden = async (alertId: string, currentHidden: boolean) => {
+    setAlerts((prev) =>
+      prev.map((a) => (a.id === alertId ? { ...a, is_hidden: !currentHidden } : a))
+    );
+
+    const { error: updateError } = await supabase
+      .from('business_alerts')
+      .update({ is_hidden: !currentHidden })
+      .eq('id', alertId);
+
+    if (updateError) {
+      console.error('Error al cambiar la visibilidad de la alerta:', updateError);
+      setAlerts((prev) =>
+        prev.map((a) => (a.id === alertId ? { ...a, is_hidden: currentHidden } : a))
+      );
+    }
+  };
+
+  const visibleAlerts = showHidden ? alerts : alerts.filter((a) => !a.is_hidden);
+  const hiddenCount = alerts.filter((a) => a.is_hidden).length;
+
   return (
     <section className="mt-6 rounded-2xl bg-white p-6 shadow-md">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-        <Bell className="w-5 h-5 text-teal-600" />
-        Mis alertas ({alerts.length})
-      </h3>
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <Bell className="w-5 h-5 text-teal-600" />
+          Mis alertas ({visibleAlerts.length})
+        </h3>
+        {hiddenCount > 0 &&
+          (showHidden ? (
+            <button
+              type="button"
+              onClick={() => setShowHidden(false)}
+              className="text-sm text-gray-600 hover:text-gray-800 inline-flex items-center gap-1"
+            >
+              <EyeOff className="w-4 h-4" />
+              Ocultar las ocultas
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowHidden(true)}
+              className="text-sm text-gray-600 hover:text-gray-800 inline-flex items-center gap-1"
+            >
+              <Eye className="w-4 h-4" />
+              Ver ocultas ({hiddenCount})
+            </button>
+          ))}
+      </div>
 
       {isLoading ? (
         <div className="flex flex-col items-center justify-center gap-3 text-gray-600 py-12">
@@ -237,9 +360,23 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
             </p>
           </div>
         </div>
+      ) : visibleAlerts.length === 0 ? (
+        <div className="rounded-2xl bg-gradient-to-br from-gray-50 to-slate-50 p-8 flex flex-col items-center justify-center gap-4 text-center border border-gray-100">
+          <div className="w-16 h-16 rounded-full bg-teal-100 flex items-center justify-center">
+            <Bell className="w-8 h-8 text-teal-600" />
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 mb-1">
+              Todo tranquilo por aquí
+            </h4>
+            <p className="text-sm text-gray-600 max-w-md">
+              Todas tus alertas están ocultas. Pulsa 'Ver ocultas' para mostrarlas.
+            </p>
+          </div>
+        </div>
       ) : (
         <ul className="space-y-4">
-          {alerts.map((alert) => {
+          {visibleAlerts.map((alert) => {
             const styles = getSeverityStyles(alert.severity);
             const cardBg = alert.is_read
               ? 'bg-gray-50 border-gray-200 opacity-70'
@@ -250,7 +387,9 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
             return (
               <li
                 key={alert.id}
-                className={`rounded-xl border p-4 transition-colors ${cardBg}`}
+                className={`rounded-xl border p-4 transition-colors ${cardBg}${
+                  alert.is_hidden ? ' opacity-60' : ''
+                }`}
               >
                 <div className="flex items-start gap-3">
                   <span
@@ -290,6 +429,28 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
                         </button>
                       )}
 
+                      <button
+                        type="button"
+                        onClick={() => handleToggleHidden(alert.id, alert.is_hidden)}
+                        className="text-sm text-gray-600 hover:text-gray-800 font-medium inline-flex items-center gap-1"
+                      >
+                        {alert.is_hidden ? (
+                          <Eye className="w-4 h-4" />
+                        ) : (
+                          <EyeOff className="w-4 h-4" />
+                        )}
+                        {alert.is_hidden ? 'Mostrar' : 'Ocultar'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAlert(alert.id)}
+                        className="text-sm text-red-600 hover:text-red-800 font-medium inline-flex items-center gap-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Eliminar
+                      </button>
+
                       {alert.alert_type === 'new_review' && !alert.suggested_reply && (
                         <button
                           type="button"
@@ -311,41 +472,81 @@ export const BusinessAlertsSection: React.FC<BusinessAlertsSectionProps> = ({ bu
                       <p className="mt-2 text-sm text-red-600">{replyError}</p>
                     )}
 
-                    {alert.alert_type === 'new_review' && alert.suggested_reply && (
-                      <div className="mt-3 rounded-xl border border-teal-200 bg-white p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">
-                            Respuesta sugerida por IA
+                    {alert.alert_type === 'new_review' &&
+                      alert.suggested_reply &&
+                      !hiddenReplyFor.has(alert.id) && (
+                        <div className="mt-3 rounded-xl border border-teal-200 bg-white p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">
+                              Respuesta sugerida por IA
+                            </p>
+                            <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleCopyReply(alert.id, alert.suggested_reply as string)
+                                }
+                                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                                  copiedFor === alert.id
+                                    ? 'text-green-700'
+                                    : 'text-gray-600 hover:text-gray-800 border border-gray-200 hover:border-gray-300'
+                                }`}
+                              >
+                                {copiedFor === alert.id ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5" />
+                                    Copiado
+                                  </>
+                                ) : (
+                                  <>
+                                    <Clipboard className="w-3.5 h-3.5" />
+                                    Copiar
+                                  </>
+                                )}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleToggleReplyVisibility(alert.id)}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:border-gray-300 hover:text-gray-800"
+                              >
+                                <EyeOff className="w-3.5 h-3.5" />
+                                Ocultar
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleRegenerateReply(alert.id)}
+                                disabled={isGenerating}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:border-gray-300 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isGenerating ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                )}
+                                {isGenerating ? 'Regenerando...' : 'Regenerar'}
+                              </button>
+                            </div>
+                          </div>
+                          <p className="mt-2 whitespace-pre-line text-sm text-gray-800">
+                            {alert.suggested_reply}
                           </p>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleCopyReply(alert.id, alert.suggested_reply as string)
-                            }
-                            className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
-                              copiedFor === alert.id
-                                ? 'text-green-700'
-                                : 'text-gray-600 hover:text-gray-800 border border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            {copiedFor === alert.id ? (
-                              <>
-                                <Check className="w-3.5 h-3.5" />
-                                Copiado
-                              </>
-                            ) : (
-                              <>
-                                <Clipboard className="w-3.5 h-3.5" />
-                                Copiar
-                              </>
-                            )}
-                          </button>
                         </div>
-                        <p className="mt-2 whitespace-pre-line text-sm text-gray-800">
-                          {alert.suggested_reply}
-                        </p>
-                      </div>
-                    )}
+                      )}
+
+                    {alert.alert_type === 'new_review' &&
+                      alert.suggested_reply &&
+                      hiddenReplyFor.has(alert.id) && (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleReplyVisibility(alert.id)}
+                          className="mt-3 inline-flex items-center gap-1.5 text-sm text-teal-700 hover:text-teal-800 border border-teal-200 rounded-lg px-3 py-1.5"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          Mostrar respuesta sugerida
+                        </button>
+                      )}
                   </div>
                 </div>
               </li>
