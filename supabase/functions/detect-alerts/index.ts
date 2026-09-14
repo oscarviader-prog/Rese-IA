@@ -118,7 +118,7 @@ serve(async (req) => {
               severity: 'info',
               title: `Sin actividad reciente`,
               message: `Han pasado ${daysSinceLastReview} días desde la última reseña de tu negocio.`,
-              created_at: new Date().toISOString(),
+              triggered_at: new Date().toISOString(),
             })
           }
         }
@@ -268,7 +268,7 @@ serve(async (req) => {
             title: `Reseña con ${review.rating} estrella${review.rating === 1 ? '' : 's'}`,
             message: `Nueva reseña de baja puntuación (${review.rating}★) requiere tu atención.`,
             related_review_id: review.id,
-            created_at: new Date().toISOString(),
+            triggered_at: new Date().toISOString(),
           })
         }
       }
@@ -296,7 +296,7 @@ serve(async (req) => {
             severity: 'warning',
             title: `Aumento repentino de reseñas`,
             message: `Has recibido ${recentCount} reseñas en las últimas ${reviewSpikeHours} horas.`,
-            created_at: new Date().toISOString(),
+            triggered_at: new Date().toISOString(),
           })
         }
       }
