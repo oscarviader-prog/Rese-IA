@@ -16,9 +16,28 @@ interface AlertSettings {
   enable_no_activity: boolean;
   rating_change_critical: number;
   rating_change_warning: number;
+  low_rating_threshold: number;
+  review_spike_count: number;
+  review_spike_hours: number;
+  no_activity_days: number;
 }
 
-type ThresholdField = 'rating_change_critical' | 'rating_change_warning';
+type ThresholdField =
+  | 'rating_change_critical'
+  | 'rating_change_warning'
+  | 'low_rating_threshold'
+  | 'review_spike_count'
+  | 'review_spike_hours'
+  | 'no_activity_days';
+
+const THRESHOLD_VALIDATION: Record<ThresholdField, { min: number; max: number; isInteger: boolean }> = {
+  rating_change_critical: { min: 0.1, max: 2.0, isInteger: false },
+  rating_change_warning: { min: 0.1, max: 2.0, isInteger: false },
+  low_rating_threshold: { min: 1, max: 4, isInteger: true },
+  review_spike_count: { min: 2, max: 50, isInteger: true },
+  review_spike_hours: { min: 1, max: 168, isInteger: true },
+  no_activity_days: { min: 7, max: 365, isInteger: true },
+};
 
 type ToggleField =
   | 'enable_new_review'
@@ -64,6 +83,10 @@ export const BusinessAlertSettingsSection: React.FC<BusinessAlertSettingsSection
   const [thresholdInputs, setThresholdInputs] = useState<Record<ThresholdField, string>>({
     rating_change_critical: '',
     rating_change_warning: '',
+    low_rating_threshold: '',
+    review_spike_count: '',
+    review_spike_hours: '',
+    no_activity_days: '',
   });
 
   useEffect(() => {
@@ -125,8 +148,19 @@ export const BusinessAlertSettingsSection: React.FC<BusinessAlertSettingsSection
     setThresholdInputs({
       rating_change_critical: String(settings.rating_change_critical),
       rating_change_warning: String(settings.rating_change_warning),
+      low_rating_threshold: String(settings.low_rating_threshold),
+      review_spike_count: String(settings.review_spike_count),
+      review_spike_hours: String(settings.review_spike_hours),
+      no_activity_days: String(settings.no_activity_days),
     });
-  }, [settings?.rating_change_critical, settings?.rating_change_warning]);
+  }, [
+    settings?.rating_change_critical,
+    settings?.rating_change_warning,
+    settings?.low_rating_threshold,
+    settings?.review_spike_count,
+    settings?.review_spike_hours,
+    settings?.no_activity_days,
+  ]);
 
   const handleToggle = async (field: ToggleField) => {
     if (!settings) return;
@@ -151,13 +185,16 @@ export const BusinessAlertSettingsSection: React.FC<BusinessAlertSettingsSection
     if (!settings) return;
 
     const previousValue = settings[field];
-    const nextCritical = field === 'rating_change_critical' ? value : settings.rating_change_critical;
-    const nextWarning = field === 'rating_change_warning' ? value : settings.rating_change_warning;
 
-    if (!(nextCritical > nextWarning)) {
-      console.error('El umbral crítico debe ser mayor que el umbral de advertencia.');
-      setThresholdInputs((prev) => ({ ...prev, [field]: String(previousValue) }));
-      return;
+    if (field === 'rating_change_critical' || field === 'rating_change_warning') {
+      const nextCritical = field === 'rating_change_critical' ? value : settings.rating_change_critical;
+      const nextWarning = field === 'rating_change_warning' ? value : settings.rating_change_warning;
+
+      if (!(nextCritical > nextWarning)) {
+        console.error('El umbral crítico debe ser mayor que el umbral de advertencia.');
+        setThresholdInputs((prev) => ({ ...prev, [field]: String(previousValue) }));
+        return;
+      }
     }
 
     setSettings((prev) => (prev ? { ...prev, [field]: value } : prev));
@@ -181,9 +218,10 @@ export const BusinessAlertSettingsSection: React.FC<BusinessAlertSettingsSection
   const handleThresholdBlur = (field: ThresholdField, value: string) => {
     if (!settings) return;
 
-    const parsed = parseFloat(value);
+    const { min, max, isInteger } = THRESHOLD_VALIDATION[field];
+    const parsed = isInteger ? parseInt(value, 10) : parseFloat(value);
 
-    if (Number.isNaN(parsed) || parsed < 0.1 || parsed > 2.0) {
+    if (Number.isNaN(parsed) || parsed < min || parsed > max) {
       console.error('Valor de umbral inválido:', value);
       setThresholdInputs((prev) => ({ ...prev, [field]: String(settings[field]) }));
       return;
@@ -285,6 +323,116 @@ export const BusinessAlertSettingsSection: React.FC<BusinessAlertSettingsSection
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Cambios de esta magnitud generan alerta de advertencia.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {field === 'enable_low_rating_review' && settings.enable_low_rating_review && (
+                <div className="mt-4 border-t border-gray-200 pt-4 space-y-3">
+                  <div>
+                    <label
+                      htmlFor="low_rating_threshold"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
+                      Umbral de estrellas
+                    </label>
+                    <input
+                      id="low_rating_threshold"
+                      type="number"
+                      step="1"
+                      min="1"
+                      max="4"
+                      value={thresholdInputs.low_rating_threshold}
+                      onChange={(e) =>
+                        handleThresholdChange('low_rating_threshold', e.target.value)
+                      }
+                      onBlur={(e) => handleThresholdBlur('low_rating_threshold', e.target.value)}
+                      className="w-24 rounded border border-gray-300 px-2 py-1 text-sm bg-white text-gray-900"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Alerta si la reseña tiene esta puntuación o menos (1-4 estrellas).
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {field === 'enable_review_spike' && settings.enable_review_spike && (
+                <div className="mt-4 border-t border-gray-200 pt-4 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label
+                        htmlFor="review_spike_count"
+                        className="block text-xs font-medium text-gray-700 mb-1"
+                      >
+                        Número de reseñas
+                      </label>
+                      <input
+                        id="review_spike_count"
+                        type="number"
+                        step="1"
+                        min="2"
+                        max="50"
+                        value={thresholdInputs.review_spike_count}
+                        onChange={(e) =>
+                          handleThresholdChange('review_spike_count', e.target.value)
+                        }
+                        onBlur={(e) => handleThresholdBlur('review_spike_count', e.target.value)}
+                        className="w-24 rounded border border-gray-300 px-2 py-1 text-sm bg-white text-gray-900"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Reseñas necesarias para disparar la alerta.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="review_spike_hours"
+                        className="block text-xs font-medium text-gray-700 mb-1"
+                      >
+                        En las últimas (horas)
+                      </label>
+                      <input
+                        id="review_spike_hours"
+                        type="number"
+                        step="1"
+                        min="1"
+                        max="168"
+                        value={thresholdInputs.review_spike_hours}
+                        onChange={(e) =>
+                          handleThresholdChange('review_spike_hours', e.target.value)
+                        }
+                        onBlur={(e) => handleThresholdBlur('review_spike_hours', e.target.value)}
+                        className="w-24 rounded border border-gray-300 px-2 py-1 text-sm bg-white text-gray-900"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Horas hacia atrás para contar.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {field === 'enable_no_activity' && settings.enable_no_activity && (
+                <div className="mt-4 border-t border-gray-200 pt-4 space-y-3">
+                  <div>
+                    <label
+                      htmlFor="no_activity_days"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
+                      Días sin actividad
+                    </label>
+                    <input
+                      id="no_activity_days"
+                      type="number"
+                      step="1"
+                      min="7"
+                      max="365"
+                      value={thresholdInputs.no_activity_days}
+                      onChange={(e) => handleThresholdChange('no_activity_days', e.target.value)}
+                      onBlur={(e) => handleThresholdBlur('no_activity_days', e.target.value)}
+                      className="w-24 rounded border border-gray-300 px-2 py-1 text-sm bg-white text-gray-900"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Días desde la última reseña para generar alerta.
                     </p>
                   </div>
                 </div>
