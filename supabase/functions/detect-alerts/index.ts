@@ -38,7 +38,25 @@ serve(async (req) => {
     }
 
     // --------------------------------------
-    // 1. Últimos 2 snapshots
+    // 1. Configuración de alertas del negocio
+    // --------------------------------------
+    const { data: settings, error: settingsError } = await supabase
+      .from('business_alert_settings')
+      .select('enable_new_review, enable_rating_change')
+      .eq('business_id', businessId)
+      .maybeSingle()
+
+    if (settingsError) {
+      console.error('Error consultando alert_settings:', settingsError)
+    }
+
+    const enableNewReview = settings?.enable_new_review ?? true
+    const enableRatingChange = settings?.enable_rating_change ?? true
+
+    console.log('Config alertas:', { enableNewReview, enableRatingChange })
+
+    // --------------------------------------
+    // 2. Últimos 2 snapshots
     // --------------------------------------
     const { data: snapshots, error: snapshotsError } = await supabase
       .from('business_snapshots')
@@ -68,7 +86,7 @@ serve(async (req) => {
     const previousSnapshot = snapshots[1]
 
     // --------------------------------------
-    // 2. Diferencia de rating
+    // 3. Diferencia de rating
     // --------------------------------------
     const currentRating = Number(currentSnapshot.rating)
     const previousRating = Number(previousSnapshot.rating)
@@ -77,77 +95,83 @@ serve(async (req) => {
     const alerts: Array<Record<string, unknown>> = []
     let ratingChangeDetected = false
 
-    const absRatingDiff = Math.abs(ratingDiff)
-    if (absRatingDiff >= RATING_DIFF_WARNING) {
-      const severity = absRatingDiff >= RATING_DIFF_CRITICAL ? 'critical' : 'warning'
-      ratingChangeDetected = true
+    if (enableRatingChange) {
+      const absRatingDiff = Math.abs(ratingDiff)
+      if (absRatingDiff >= RATING_DIFF_WARNING) {
+        const severity = absRatingDiff >= RATING_DIFF_CRITICAL ? 'critical' : 'warning'
+        ratingChangeDetected = true
 
-      console.log('Cambio de rating detectado:', {
-        old_rating: previousRating,
-        new_rating: currentRating,
-        diff: ratingDiff,
-        severity,
-      })
-
-      alerts.push({
-        business_id: businessId,
-        alert_type: 'rating_change',
-        severity,
-        title: `Cambio significativo de rating: ${previousRating} → ${currentRating}`,
-        message: `El rating de tu negocio ha ${ratingDiff > 0 ? 'subido' : 'bajado'} ${absRatingDiff.toFixed(1)} puntos.`,
-        metadata: {
+        console.log('Cambio de rating detectado:', {
           old_rating: previousRating,
           new_rating: currentRating,
           diff: ratingDiff,
-        },
-      })
+          severity,
+        })
+
+        alerts.push({
+          business_id: businessId,
+          alert_type: 'rating_change',
+          severity,
+          title: `Cambio significativo de rating: ${previousRating} → ${currentRating}`,
+          message: `El rating de tu negocio ha ${ratingDiff > 0 ? 'subido' : 'bajado'} ${absRatingDiff.toFixed(1)} puntos.`,
+          metadata: {
+            old_rating: previousRating,
+            new_rating: currentRating,
+            diff: ratingDiff,
+          },
+        })
+      }
     }
 
     // --------------------------------------
-    // 3. Reseñas nuevas desde el snapshot anterior
+    // 4. Reseñas nuevas desde el snapshot anterior
     // --------------------------------------
-    const { data: newReviews, error: reviewsError } = await supabase
-      .from('business_reviews')
-      .select('id, author_name, rating, text')
-      .eq('business_id', businessId)
-      .gt('captured_at', previousSnapshot.snapshot_date)
+    let reviewsList: any[] = []
 
-    if (reviewsError) {
-      console.error('Error al consultar business_reviews:', reviewsError)
-      return new Response(
-        JSON.stringify({ success: false, error: reviewsError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (enableNewReview) {
+      const { data: newReviews, error: reviewsError } = await supabase
+        .from('business_reviews')
+        .select('id, author_name, rating, text')
+        .eq('business_id', businessId)
+        .gt('captured_at', previousSnapshot.snapshot_date)
+
+      if (reviewsError) {
+        console.error('Error al consultar business_reviews:', reviewsError)
+        return new Response(
+          JSON.stringify({ success: false, error: reviewsError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      reviewsList = newReviews ?? []
+      console.log('Reseñas nuevas detectadas:', reviewsList.length)
+
+      for (const review of reviewsList) {
+        const reviewRating = Number(review.rating)
+        const severity = reviewRating <= 2 ? 'warning' : 'info'
+        const authorName = review.author_name || 'usuario anónimo'
+        const message = review.text
+          ? `"${review.text.substring(0, 200)}${review.text.length > 200 ? '...' : ''}"`
+          : 'Reseña sin texto.'
+
+        alerts.push({
+          business_id: businessId,
+          alert_type: 'new_review',
+          severity,
+          related_review_id: review.id,
+          title: `Nueva reseña de ${review.rating}★ por ${authorName}`,
+          message,
+          metadata: {
+            review_id: review.id,
+            author_name: review.author_name,
+            rating: review.rating,
+          },
+        })
+      }
     }
 
-    const reviewsList = newReviews ?? []
-    console.log('Reseñas nuevas detectadas:', reviewsList.length)
-
-    for (const review of reviewsList) {
-      const reviewRating = Number(review.rating)
-      const severity = reviewRating <= 2 ? 'warning' : 'info'
-      const authorName = review.author_name || 'usuario anónimo'
-      const message = review.text
-        ? `"${review.text.substring(0, 200)}${review.text.length > 200 ? '...' : ''}"`
-        : 'Reseña sin texto.'
-
-      alerts.push({
-        business_id: businessId,
-        alert_type: 'new_review',
-        severity,
-        related_review_id: review.id,
-        title: `Nueva reseña de ${review.rating}★ por ${authorName}`,
-        message,
-        metadata: {
-          review_id: review.id,
-          author_name: review.author_name,
-          rating: review.rating,
-        },
-      })
-    }
-
     // --------------------------------------
-    // 4. Insertar todas las alertas
+    // 5. Insertar todas las alertas
     // --------------------------------------
     if (alerts.length === 0) {
       console.log('No hay alertas que crear')
@@ -157,6 +181,7 @@ serve(async (req) => {
           alerts_created: 0,
           rating_change_detected: ratingChangeDetected,
           new_reviews_detected: reviewsList.length,
+          settings_applied: { enableNewReview, enableRatingChange },
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -182,6 +207,7 @@ serve(async (req) => {
         alerts_created: alerts.length,
         rating_change_detected: ratingChangeDetected,
         new_reviews_detected: reviewsList.length,
+        settings_applied: { enableNewReview, enableRatingChange },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
