@@ -14,7 +14,11 @@ interface AlertSettings {
   enable_low_rating_review: boolean;
   enable_review_spike: boolean;
   enable_no_activity: boolean;
+  rating_change_critical: number;
+  rating_change_warning: number;
 }
+
+type ThresholdField = 'rating_change_critical' | 'rating_change_warning';
 
 type ToggleField =
   | 'enable_new_review'
@@ -57,6 +61,10 @@ export const BusinessAlertSettingsSection: React.FC<BusinessAlertSettingsSection
   const [settings, setSettings] = useState<AlertSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [thresholdInputs, setThresholdInputs] = useState<Record<ThresholdField, string>>({
+    rating_change_critical: '',
+    rating_change_warning: '',
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -112,6 +120,14 @@ export const BusinessAlertSettingsSection: React.FC<BusinessAlertSettingsSection
     };
   }, [businessId]);
 
+  useEffect(() => {
+    if (!settings) return;
+    setThresholdInputs({
+      rating_change_critical: String(settings.rating_change_critical),
+      rating_change_warning: String(settings.rating_change_warning),
+    });
+  }, [settings?.rating_change_critical, settings?.rating_change_warning]);
+
   const handleToggle = async (field: ToggleField) => {
     if (!settings) return;
 
@@ -129,6 +145,51 @@ export const BusinessAlertSettingsSection: React.FC<BusinessAlertSettingsSection
       console.error('Error al actualizar la configuración de alertas:', updateError);
       setSettings((prev) => (prev ? { ...prev, [field]: previousValue } : prev));
     }
+  };
+
+  const handleUpdateThreshold = async (field: ThresholdField, value: number) => {
+    if (!settings) return;
+
+    const previousValue = settings[field];
+    const nextCritical = field === 'rating_change_critical' ? value : settings.rating_change_critical;
+    const nextWarning = field === 'rating_change_warning' ? value : settings.rating_change_warning;
+
+    if (!(nextCritical > nextWarning)) {
+      console.error('El umbral crítico debe ser mayor que el umbral de advertencia.');
+      setThresholdInputs((prev) => ({ ...prev, [field]: String(previousValue) }));
+      return;
+    }
+
+    setSettings((prev) => (prev ? { ...prev, [field]: value } : prev));
+
+    const { error: updateError } = await supabase
+      .from('business_alert_settings')
+      .update({ [field]: value })
+      .eq('id', settings.id);
+
+    if (updateError) {
+      console.error('Error al actualizar el umbral de alertas:', updateError);
+      setSettings((prev) => (prev ? { ...prev, [field]: previousValue } : prev));
+      setThresholdInputs((prev) => ({ ...prev, [field]: String(previousValue) }));
+    }
+  };
+
+  const handleThresholdChange = (field: ThresholdField, value: string) => {
+    setThresholdInputs((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleThresholdBlur = (field: ThresholdField, value: string) => {
+    if (!settings) return;
+
+    const parsed = parseFloat(value);
+
+    if (Number.isNaN(parsed) || parsed < 0.1 || parsed > 2.0) {
+      console.error('Valor de umbral inválido:', value);
+      setThresholdInputs((prev) => ({ ...prev, [field]: String(settings[field]) }));
+      return;
+    }
+
+    handleUpdateThreshold(field, parsed);
   };
 
   return (
@@ -150,27 +211,84 @@ export const BusinessAlertSettingsSection: React.FC<BusinessAlertSettingsSection
       ) : settings ? (
         <div className="space-y-3">
           {TOGGLE_DEFINITIONS.map(({ field, title, description }) => (
-            <div
-              key={field}
-              className="border border-gray-200 rounded-lg p-4 flex items-center justify-between"
-            >
-              <div className="pr-4">
-                <p className="text-sm font-semibold text-gray-900">{title}</p>
-                <p className="text-sm text-gray-600 mt-0.5">{description}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleToggle(field)}
-                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-                  settings[field] ? 'bg-teal-600' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    settings[field] ? 'translate-x-6' : 'translate-x-1'
+            <div key={field} className="border border-gray-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="pr-4">
+                  <p className="text-sm font-semibold text-gray-900">{title}</p>
+                  <p className="text-sm text-gray-600 mt-0.5">{description}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleToggle(field)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                    settings[field] ? 'bg-teal-600' : 'bg-gray-300'
                   }`}
-                />
-              </button>
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      settings[field] ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {field === 'enable_rating_change' && settings.enable_rating_change && (
+                <div className="mt-4 border-t border-gray-200 pt-4 space-y-3">
+                  <div>
+                    <label
+                      htmlFor="rating_change_critical"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
+                      Umbral crítico (bajada/subida ≥)
+                    </label>
+                    <input
+                      id="rating_change_critical"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      max="2.0"
+                      value={thresholdInputs.rating_change_critical}
+                      onChange={(e) =>
+                        handleThresholdChange('rating_change_critical', e.target.value)
+                      }
+                      onBlur={(e) =>
+                        handleThresholdBlur('rating_change_critical', e.target.value)
+                      }
+                      className="w-24 rounded border border-gray-300 px-2 py-1 text-sm bg-white text-gray-900"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Cambios de esta magnitud generan alerta crítica.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="rating_change_warning"
+                      className="block text-xs font-medium text-gray-700 mb-1"
+                    >
+                      Umbral de advertencia (bajada/subida ≥)
+                    </label>
+                    <input
+                      id="rating_change_warning"
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      max="2.0"
+                      value={thresholdInputs.rating_change_warning}
+                      onChange={(e) =>
+                        handleThresholdChange('rating_change_warning', e.target.value)
+                      }
+                      onBlur={(e) =>
+                        handleThresholdBlur('rating_change_warning', e.target.value)
+                      }
+                      className="w-24 rounded border border-gray-300 px-2 py-1 text-sm bg-white text-gray-900"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Cambios de esta magnitud generan alerta de advertencia.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
