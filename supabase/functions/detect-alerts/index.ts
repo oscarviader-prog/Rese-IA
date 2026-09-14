@@ -14,10 +14,6 @@ const supabase = createClient(
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-// Umbrales de cambio de rating
-const RATING_DIFF_CRITICAL = 0.3
-const RATING_DIFF_WARNING = 0.2
-
 // ==========================================
 // HANDLER PRINCIPAL
 // ==========================================
@@ -42,7 +38,7 @@ serve(async (req) => {
     // --------------------------------------
     const { data: settings, error: settingsError } = await supabase
       .from('business_alert_settings')
-      .select('enable_new_review, enable_rating_change')
+      .select('enable_new_review, enable_rating_change, rating_change_critical, rating_change_warning')
       .eq('business_id', businessId)
       .maybeSingle()
 
@@ -52,8 +48,15 @@ serve(async (req) => {
 
     const enableNewReview = settings?.enable_new_review ?? true
     const enableRatingChange = settings?.enable_rating_change ?? true
+    const ratingCritical = Number(settings?.rating_change_critical ?? 0.3)
+    const ratingWarning = Number(settings?.rating_change_warning ?? 0.2)
 
-    console.log('Config alertas:', { enableNewReview, enableRatingChange })
+    console.log('Config alertas:', {
+      enableNewReview,
+      enableRatingChange,
+      ratingCritical,
+      ratingWarning,
+    })
 
     // --------------------------------------
     // 2. Últimos 2 snapshots
@@ -97,8 +100,8 @@ serve(async (req) => {
 
     if (enableRatingChange) {
       const absRatingDiff = Math.abs(ratingDiff)
-      if (absRatingDiff >= RATING_DIFF_WARNING) {
-        const severity = absRatingDiff >= RATING_DIFF_CRITICAL ? 'critical' : 'warning'
+      if (absRatingDiff >= ratingWarning) {
+        const severity = absRatingDiff >= ratingCritical ? 'critical' : 'warning'
         ratingChangeDetected = true
 
         console.log('Cambio de rating detectado:', {
@@ -181,7 +184,7 @@ serve(async (req) => {
           alerts_created: 0,
           rating_change_detected: ratingChangeDetected,
           new_reviews_detected: reviewsList.length,
-          settings_applied: { enableNewReview, enableRatingChange },
+          settings_applied: { enableNewReview, enableRatingChange, ratingCritical, ratingWarning },
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
@@ -207,7 +210,7 @@ serve(async (req) => {
         alerts_created: alerts.length,
         rating_change_detected: ratingChangeDetected,
         new_reviews_detected: reviewsList.length,
-        settings_applied: { enableNewReview, enableRatingChange },
+        settings_applied: { enableNewReview, enableRatingChange, ratingCritical, ratingWarning },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
