@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Settings, Loader2 } from 'lucide-react';
+import {
+  Settings,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  MessageSquare,
+  TrendingUp,
+  AlertTriangle,
+  Zap,
+  Clock,
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface BusinessAlertSettingsSectionProps {
@@ -46,31 +56,53 @@ type ToggleField =
   | 'enable_review_spike'
   | 'enable_no_activity';
 
-const TOGGLE_DEFINITIONS: { field: ToggleField; title: string; description: string }[] = [
+const TOGGLE_DEFINITIONS: {
+  field: ToggleField;
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  iconBg: string;
+  iconColor: string;
+}[] = [
   {
     field: 'enable_new_review',
     title: 'Nuevas reseñas',
     description: 'Recibe alerta cuando llegan reseñas nuevas a tu negocio.',
+    icon: MessageSquare,
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-600',
   },
   {
     field: 'enable_rating_change',
     title: 'Cambios en el rating',
     description: 'Alerta cuando la nota media sube o baja significativamente.',
+    icon: TrendingUp,
+    iconBg: 'bg-amber-100',
+    iconColor: 'text-amber-600',
   },
   {
     field: 'enable_low_rating_review',
     title: 'Reseñas de baja puntuación',
     description: 'Alerta específica cuando llega una reseña con 1 o 2 estrellas.',
+    icon: AlertTriangle,
+    iconBg: 'bg-red-100',
+    iconColor: 'text-red-600',
   },
   {
     field: 'enable_review_spike',
     title: 'Aumento repentino de reseñas',
     description: 'Alerta si recibes muchas reseñas en poco tiempo.',
+    icon: Zap,
+    iconBg: 'bg-purple-100',
+    iconColor: 'text-purple-600',
   },
   {
     field: 'enable_no_activity',
     title: 'Sin actividad reciente',
     description: 'Alerta si tu negocio pasa mucho tiempo sin reseñas nuevas.',
+    icon: Clock,
+    iconBg: 'bg-gray-100',
+    iconColor: 'text-gray-600',
   },
 ];
 
@@ -80,6 +112,7 @@ export const BusinessAlertSettingsSection: React.FC<BusinessAlertSettingsSection
   const [settings, setSettings] = useState<AlertSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [thresholdInputs, setThresholdInputs] = useState<Record<ThresholdField, string>>({
     rating_change_critical: '',
     rating_change_warning: '',
@@ -232,215 +265,245 @@ export const BusinessAlertSettingsSection: React.FC<BusinessAlertSettingsSection
 
   return (
     <section className="rounded-2xl bg-white p-6 shadow-md mt-6">
-      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
-        <Settings className="w-5 h-5 text-teal-600" />
-        Configuración de alertas
-      </h3>
-
-      {isLoading ? (
-        <div className="flex flex-col items-center justify-center gap-3 text-gray-600 py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
-          <p className="text-sm">Cargando configuración...</p>
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between text-left cursor-pointer transition-opacity hover:opacity-90"
+      >
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-full bg-teal-100">
+            <Settings className="w-6 h-6 text-teal-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Configuración de alertas</h3>
+            <p className="text-sm text-gray-500 mt-0.5">
+              Personaliza qué alertas quieres recibir y cuándo se disparan.
+            </p>
+          </div>
         </div>
-      ) : error ? (
-        <div className="bg-red-50 text-red-800 border border-red-200 rounded-lg p-4 text-sm">
-          {error}
-        </div>
-      ) : settings ? (
-        <div className="space-y-3">
-          {TOGGLE_DEFINITIONS.map(({ field, title, description }) => (
-            <div key={field} className="border border-gray-200 rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="pr-4">
-                  <p className="text-sm font-semibold text-gray-900">{title}</p>
-                  <p className="text-sm text-gray-600 mt-0.5">{description}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleToggle(field)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-                    settings[field] ? 'bg-teal-600' : 'bg-gray-300'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      settings[field] ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
+        {isExpanded ? (
+          <ChevronUp className="w-5 h-5 text-gray-400" />
+        ) : (
+          <ChevronDown className="w-5 h-5 text-gray-400" />
+        )}
+      </button>
 
-              {field === 'enable_rating_change' && settings.enable_rating_change && (
-                <div className="mt-4 border-t border-gray-200 pt-4 space-y-3">
-                  <div>
-                    <label
-                      htmlFor="rating_change_critical"
-                      className="block text-xs font-medium text-gray-700 mb-1"
-                    >
-                      Umbral crítico (bajada/subida ≥)
-                    </label>
-                    <input
-                      id="rating_change_critical"
-                      type="number"
-                      step="0.1"
-                      min="0.1"
-                      max="2.0"
-                      value={thresholdInputs.rating_change_critical}
-                      onChange={(e) =>
-                        handleThresholdChange('rating_change_critical', e.target.value)
-                      }
-                      onBlur={(e) =>
-                        handleThresholdBlur('rating_change_critical', e.target.value)
-                      }
-                      className="w-24 rounded border border-gray-300 px-2 py-1 text-sm bg-white text-gray-900"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Cambios de esta magnitud generan alerta crítica.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="rating_change_warning"
-                      className="block text-xs font-medium text-gray-700 mb-1"
-                    >
-                      Umbral de advertencia (bajada/subida ≥)
-                    </label>
-                    <input
-                      id="rating_change_warning"
-                      type="number"
-                      step="0.1"
-                      min="0.1"
-                      max="2.0"
-                      value={thresholdInputs.rating_change_warning}
-                      onChange={(e) =>
-                        handleThresholdChange('rating_change_warning', e.target.value)
-                      }
-                      onBlur={(e) =>
-                        handleThresholdBlur('rating_change_warning', e.target.value)
-                      }
-                      className="w-24 rounded border border-gray-300 px-2 py-1 text-sm bg-white text-gray-900"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Cambios de esta magnitud generan alerta de advertencia.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {field === 'enable_low_rating_review' && settings.enable_low_rating_review && (
-                <div className="mt-4 border-t border-gray-200 pt-4 space-y-3">
-                  <div>
-                    <label
-                      htmlFor="low_rating_threshold"
-                      className="block text-xs font-medium text-gray-700 mb-1"
-                    >
-                      Umbral de estrellas
-                    </label>
-                    <input
-                      id="low_rating_threshold"
-                      type="number"
-                      step="1"
-                      min="1"
-                      max="4"
-                      value={thresholdInputs.low_rating_threshold}
-                      onChange={(e) =>
-                        handleThresholdChange('low_rating_threshold', e.target.value)
-                      }
-                      onBlur={(e) => handleThresholdBlur('low_rating_threshold', e.target.value)}
-                      className="w-24 rounded border border-gray-300 px-2 py-1 text-sm bg-white text-gray-900"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Alerta si la reseña tiene esta puntuación o menos (1-4 estrellas).
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {field === 'enable_review_spike' && settings.enable_review_spike && (
-                <div className="mt-4 border-t border-gray-200 pt-4 space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label
-                        htmlFor="review_spike_count"
-                        className="block text-xs font-medium text-gray-700 mb-1"
-                      >
-                        Número de reseñas
-                      </label>
-                      <input
-                        id="review_spike_count"
-                        type="number"
-                        step="1"
-                        min="2"
-                        max="50"
-                        value={thresholdInputs.review_spike_count}
-                        onChange={(e) =>
-                          handleThresholdChange('review_spike_count', e.target.value)
-                        }
-                        onBlur={(e) => handleThresholdBlur('review_spike_count', e.target.value)}
-                        className="w-24 rounded border border-gray-300 px-2 py-1 text-sm bg-white text-gray-900"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Reseñas necesarias para disparar la alerta.
-                      </p>
-                    </div>
-
-                    <div>
-                      <label
-                        htmlFor="review_spike_hours"
-                        className="block text-xs font-medium text-gray-700 mb-1"
-                      >
-                        En las últimas (horas)
-                      </label>
-                      <input
-                        id="review_spike_hours"
-                        type="number"
-                        step="1"
-                        min="1"
-                        max="168"
-                        value={thresholdInputs.review_spike_hours}
-                        onChange={(e) =>
-                          handleThresholdChange('review_spike_hours', e.target.value)
-                        }
-                        onBlur={(e) => handleThresholdBlur('review_spike_hours', e.target.value)}
-                        className="w-24 rounded border border-gray-300 px-2 py-1 text-sm bg-white text-gray-900"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Horas hacia atrás para contar.</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {field === 'enable_no_activity' && settings.enable_no_activity && (
-                <div className="mt-4 border-t border-gray-200 pt-4 space-y-3">
-                  <div>
-                    <label
-                      htmlFor="no_activity_days"
-                      className="block text-xs font-medium text-gray-700 mb-1"
-                    >
-                      Días sin actividad
-                    </label>
-                    <input
-                      id="no_activity_days"
-                      type="number"
-                      step="1"
-                      min="7"
-                      max="365"
-                      value={thresholdInputs.no_activity_days}
-                      onChange={(e) => handleThresholdChange('no_activity_days', e.target.value)}
-                      onBlur={(e) => handleThresholdBlur('no_activity_days', e.target.value)}
-                      className="w-24 rounded border border-gray-300 px-2 py-1 text-sm bg-white text-gray-900"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Días desde la última reseña para generar alerta.
-                    </p>
-                  </div>
-                </div>
-              )}
+      {isExpanded && (
+        <>
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center gap-3 text-gray-600 py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+              <p className="text-sm">Cargando configuración...</p>
             </div>
-          ))}
-        </div>
-      ) : null}
+          ) : error ? (
+            <div className="mt-6 bg-red-50 text-red-800 border border-red-200 rounded-lg p-4 text-sm">
+              {error}
+            </div>
+          ) : settings ? (
+            <div className="mt-6 space-y-3">
+              {TOGGLE_DEFINITIONS.map(({ field, title, description, icon: Icon, iconBg, iconColor }) => (
+                <div
+                  key={field}
+                  className="rounded-xl border border-gray-200 bg-gray-50 p-4 hover:bg-white hover:shadow-sm transition-all"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className={`p-2 rounded-full ${iconBg}`}>
+                        <Icon className={`w-5 h-5 ${iconColor}`} />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-base font-semibold text-gray-900">{title}</h4>
+                        <p className="text-sm text-gray-500 mt-0.5">{description}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(field)}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
+                        settings[field] ? 'bg-teal-600' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          settings[field] ? 'translate-x-5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {field === 'enable_rating_change' && settings.enable_rating_change && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                      <div>
+                        <label
+                          htmlFor="rating_change_critical"
+                          className="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1"
+                        >
+                          Umbral crítico (bajada/subida ≥)
+                        </label>
+                        <input
+                          id="rating_change_critical"
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          max="2.0"
+                          value={thresholdInputs.rating_change_critical}
+                          onChange={(e) =>
+                            handleThresholdChange('rating_change_critical', e.target.value)
+                          }
+                          onBlur={(e) =>
+                            handleThresholdBlur('rating_change_critical', e.target.value)
+                          }
+                          className="w-full max-w-[120px] rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-100 outline-none transition-all"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Cambios de esta magnitud generan alerta crítica.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="rating_change_warning"
+                          className="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1"
+                        >
+                          Umbral de advertencia (bajada/subida ≥)
+                        </label>
+                        <input
+                          id="rating_change_warning"
+                          type="number"
+                          step="0.1"
+                          min="0.1"
+                          max="2.0"
+                          value={thresholdInputs.rating_change_warning}
+                          onChange={(e) =>
+                            handleThresholdChange('rating_change_warning', e.target.value)
+                          }
+                          onBlur={(e) =>
+                            handleThresholdBlur('rating_change_warning', e.target.value)
+                          }
+                          className="w-full max-w-[120px] rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-100 outline-none transition-all"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Cambios de esta magnitud generan alerta de advertencia.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {field === 'enable_low_rating_review' && settings.enable_low_rating_review && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                      <div>
+                        <label
+                          htmlFor="low_rating_threshold"
+                          className="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1"
+                        >
+                          Umbral de estrellas
+                        </label>
+                        <input
+                          id="low_rating_threshold"
+                          type="number"
+                          step="1"
+                          min="1"
+                          max="4"
+                          value={thresholdInputs.low_rating_threshold}
+                          onChange={(e) =>
+                            handleThresholdChange('low_rating_threshold', e.target.value)
+                          }
+                          onBlur={(e) => handleThresholdBlur('low_rating_threshold', e.target.value)}
+                          className="w-full max-w-[120px] rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-100 outline-none transition-all"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Alerta si la reseña tiene esta puntuación o menos (1-4 estrellas).
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {field === 'enable_review_spike' && settings.enable_review_spike && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label
+                            htmlFor="review_spike_count"
+                            className="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1"
+                          >
+                            Número de reseñas
+                          </label>
+                          <input
+                            id="review_spike_count"
+                            type="number"
+                            step="1"
+                            min="2"
+                            max="50"
+                            value={thresholdInputs.review_spike_count}
+                            onChange={(e) =>
+                              handleThresholdChange('review_spike_count', e.target.value)
+                            }
+                            onBlur={(e) => handleThresholdBlur('review_spike_count', e.target.value)}
+                            className="w-full max-w-[120px] rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-100 outline-none transition-all"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">
+                            Reseñas necesarias para disparar la alerta.
+                          </p>
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor="review_spike_hours"
+                            className="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1"
+                          >
+                            En las últimas (horas)
+                          </label>
+                          <input
+                            id="review_spike_hours"
+                            type="number"
+                            step="1"
+                            min="1"
+                            max="168"
+                            value={thresholdInputs.review_spike_hours}
+                            onChange={(e) =>
+                              handleThresholdChange('review_spike_hours', e.target.value)
+                            }
+                            onBlur={(e) => handleThresholdBlur('review_spike_hours', e.target.value)}
+                            className="w-full max-w-[120px] rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-100 outline-none transition-all"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">Horas hacia atrás para contar.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {field === 'enable_no_activity' && settings.enable_no_activity && (
+                    <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                      <div>
+                        <label
+                          htmlFor="no_activity_days"
+                          className="block text-xs font-medium text-gray-700 uppercase tracking-wide mb-1"
+                        >
+                          Días sin actividad
+                        </label>
+                        <input
+                          id="no_activity_days"
+                          type="number"
+                          step="1"
+                          min="7"
+                          max="365"
+                          value={thresholdInputs.no_activity_days}
+                          onChange={(e) => handleThresholdChange('no_activity_days', e.target.value)}
+                          onBlur={(e) => handleThresholdBlur('no_activity_days', e.target.value)}
+                          className="w-full max-w-[120px] rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 focus:border-teal-500 focus:ring-2 focus:ring-teal-100 outline-none transition-all"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Días desde la última reseña para generar alerta.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </>
+      )}
     </section>
   );
 };
