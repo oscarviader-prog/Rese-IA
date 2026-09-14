@@ -15,6 +15,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { BusinessMetricsDashboard } from './BusinessMetricsDashboard';
 import { BusinessAlertsSection } from './BusinessAlertsSection';
+import { BusinessAlertSettingsSection } from './BusinessAlertSettingsSection';
 import { BusinessReportsSection } from './BusinessReportsSection';
 
 interface BusinessDashboardProps {
@@ -430,6 +431,8 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
                 initialFrequency={business.report_frequency || 'weekly'}
               />
             </div>
+
+            <BusinessAlertSettingsSection businessId={business.id} />
           </div>
         </div>
       </div>
@@ -453,6 +456,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
             </div>
           </div>
           <BusinessDataList business={business} onUpdated={handleBusinessUpdated} />
+          <BusinessAlertSettingsSection businessId={business.id} />
           <UpcomingSection />
         </div>
       </div>
