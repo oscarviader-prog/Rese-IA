@@ -251,7 +251,45 @@ serve(async (req) => {
     }
 
     // --------------------------------------
-    // 7. Construir objeto metrics
+    // 7. Llamar a generate-report-analysis
+    // --------------------------------------
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+    const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+    let analysisResult = null
+    try {
+      const analysisResponse = await fetch(
+        `${SUPABASE_URL}/functions/v1/generate-report-analysis`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+          },
+          body: JSON.stringify({
+            businessId,
+            periodDays,
+          }),
+        }
+      )
+
+      if (analysisResponse.ok) {
+        const analysisData = await analysisResponse.json()
+        if (analysisData.success && analysisData.analysis) {
+          analysisResult = analysisData.analysis
+        } else {
+          console.error('generate-report-analysis returned unsuccessful:', analysisData)
+        }
+      } else {
+        console.error('generate-report-analysis failed with status:', analysisResponse.status)
+      }
+    } catch (analysisError) {
+      console.error('Error llamando a generate-report-analysis:', analysisError)
+      // No bloquea la generación del informe si falla el análisis.
+    }
+
+    // --------------------------------------
+    // 8. Construir objeto metrics
     // --------------------------------------
     const metrics = {
       current_rating: currentRating,
@@ -261,12 +299,13 @@ serve(async (req) => {
       top_positive_review: topPositiveReview,
       top_negative_review: topNegativeReview,
       total_reviews_captured: totalReviewsCaptured ?? 0,
+      ai_analysis: analysisResult,
     }
 
     console.log('Métricas calculadas:', metrics)
 
     // --------------------------------------
-    // 8. Insertar en business_reports
+    // 9. Insertar en business_reports
     // --------------------------------------
     const { data: inserted, error: insertError } = await supabase
       .from('business_reports')
@@ -300,6 +339,7 @@ serve(async (req) => {
           period_end: periodEndISO,
           metrics,
         },
+        ai_analysis_generated: analysisResult !== null,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
