@@ -10,6 +10,7 @@ import { AlertSettingsSection } from './AlertSettingsSection';
 import { FavoriteButton } from './FavoriteButton';
 import { ConsumerChatFloating } from './ConsumerChatFloating';
 import { ConsumerPlaceActions } from './ConsumerPlaceActions';
+import { ConsumerRecommendationReasons } from './ConsumerRecommendationReasons';
 import { GooglePlaceDetails, GooglePlaceReview } from './PlaceDetailModal';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -381,6 +382,17 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
               </div>
             )}
 
+            {/* Por qué ReseñIA recomienda este establecimiento: factores
+                reales de Google Places y del perfil del consumidor. Solo se
+                muestran los factores con datos disponibles; nunca coincidencias
+                o porcentajes inventados. */}
+            <ConsumerRecommendationReasons
+              place={selectedPlace}
+              category={category}
+              details={placeDetails}
+              isConsumerAuthed={isConsumerAuthed}
+            />
+
             {/* Reseñas de Google */}
             <div className="mt-5">
               <h4 className={sectionHeader + ' flex items-center gap-2 mb-3'}>
@@ -424,8 +436,10 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
 
             {/* Acciones del establecimiento: la sección y su gating los decide
                 `ConsumerPlaceActions` a partir de la categoría y sus capacidades.
-                `reserva_mesa` es hoy la única capacidad con flujo real; las demás
-                no se muestran, evitando botones ficticios para flujos inexistentes. */}
+                `reserva_mesa` es hoy la única capacidad con flujo real (el
+                formulario que se pasa como children); las demás capacidades de la
+                categoría se muestran de forma no operativa para preparar la
+                arquitectura sin simular funcionalidades inexistentes. */}
             <ConsumerPlaceActions
               category={category}
               placeName={placeName}
