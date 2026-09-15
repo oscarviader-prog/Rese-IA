@@ -424,8 +424,10 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
 
             {/* Acciones del establecimiento: la sección y su gating los decide
                 `ConsumerPlaceActions` a partir de la categoría y sus capacidades.
-                `reserva_mesa` es hoy la única capacidad con flujo real; las demás
-                no se muestran, evitando botones ficticios para flujos inexistentes. */}
+                `reserva_mesa` es hoy la única capacidad con flujo real (el
+                formulario que se pasa como children); las demás capacidades de la
+                categoría se muestran de forma no operativa para preparar la
+                arquitectura sin simular funcionalidades inexistentes. */}
             <ConsumerPlaceActions
               category={category}
               placeName={placeName}
