@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { CATEGORIES, CAPACITY_LABELS } from '../lib/categories';
+import { OCCASION_GUSTOS } from '../lib/importantDates';
 import {
   Send,
   Loader2,
@@ -23,6 +25,18 @@ const SUGGESTIONS: string[] = [
   '¿Qué sitios tengo guardados?',
   'Recomiéndame algo para una ocasión especial',
 ];
+
+// Contexto estático de la app que se envía a la Edge Function `consumer-chat`
+// para interpretar mejor las peticiones del consumidor sin duplicar lógica
+// en el backend (fuente de verdad: categories.ts e importantDates.ts).
+const CATEGORIAS_CONTEXTO = Object.values(CATEGORIES)
+  .map((cat) => {
+    const capacidades = cat.capacidades.map((cap) => CAPACITY_LABELS[cap]).join(', ');
+    return capacidades ? `${cat.label} (${capacidades})` : cat.label;
+  })
+  .join(' · ');
+
+const GUSTOS_CONTEXTO = OCCASION_GUSTOS.map((g) => `${g.id}=${g.label}`).join(' | ');
 
 /**
  * Chatbot del consumidor como widget flotante (esquina inferior derecha) con la
@@ -72,6 +86,8 @@ export const ConsumerChatFloating: React.FC = () => {
           message: text,
           conversationHistory: messages,
           userCity: user?.city || undefined,
+          categoriasContext: CATEGORIAS_CONTEXTO,
+          gustosContext: GUSTOS_CONTEXTO,
         },
       })
 
