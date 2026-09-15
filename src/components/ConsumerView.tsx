@@ -143,7 +143,7 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
     setDetailsError(false);
     (async () => {
       try {
-        const res = await supabase.functions.invoke('get-place-details', {
+        const res = await supabase.functions.invoke('smooth-api', {
           body: { placeId: selectedPlace.id },
         });
         if (!active) return;

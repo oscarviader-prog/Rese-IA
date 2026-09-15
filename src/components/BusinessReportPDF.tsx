@@ -9,6 +9,18 @@ interface ReviewSnippet {
   text: string | null;
 }
 
+interface AiAnalysis {
+  resumen_general: string;
+  fortalezas: string[];
+  debilidades: string[];
+  recomendaciones: Array<{
+    titulo: string;
+    descripcion: string;
+    prioridad: 'alta' | 'media' | 'baja';
+  }>;
+  tendencia: 'positiva' | 'estable' | 'negativa';
+}
+
 interface Report {
   id: string;
   report_type: ReportType;
@@ -22,6 +34,7 @@ interface Report {
     top_positive_review: ReviewSnippet | null;
     top_negative_review: ReviewSnippet | null;
     total_reviews_captured: number;
+    ai_analysis?: AiAnalysis | null;
   };
   generated_at: string;
 }
@@ -175,6 +188,102 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: '#9ca3af',
   },
+  analysisSection: {
+    marginTop: 20,
+    paddingTop: 15,
+    borderTop: '2px solid #0d9488',
+  },
+  analysisSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0d9488',
+    marginBottom: 10,
+  },
+  analysisResumen: {
+    fontSize: 11,
+    color: '#374151',
+    lineHeight: 1.5,
+    marginBottom: 15,
+    fontStyle: 'italic',
+  },
+  analysisSubTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  analysisBulletList: {
+    marginLeft: 10,
+  },
+  analysisBullet: {
+    fontSize: 10,
+    color: '#374151',
+    marginBottom: 4,
+    lineHeight: 1.4,
+  },
+  recomendacionCard: {
+    backgroundColor: '#f9fafb',
+    padding: 8,
+    marginBottom: 6,
+    borderLeft: '3px solid #0d9488',
+    borderRadius: 3,
+  },
+  recomendacionTitulo: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  recomendacionDescripcion: {
+    fontSize: 10,
+    color: '#4b5563',
+    lineHeight: 1.4,
+  },
+  prioridadBadge: {
+    fontSize: 8,
+    paddingLeft: 4,
+    paddingRight: 4,
+    paddingTop: 2,
+    paddingBottom: 2,
+    borderRadius: 2,
+    marginRight: 4,
+    alignSelf: 'flex-start',
+  },
+  prioridadAlta: {
+    backgroundColor: '#fee2e2',
+    color: '#991b1b',
+  },
+  prioridadMedia: {
+    backgroundColor: '#fef3c7',
+    color: '#92400e',
+  },
+  prioridadBaja: {
+    backgroundColor: '#dbeafe',
+    color: '#1e40af',
+  },
+  tendenciaBadge: {
+    fontSize: 10,
+    paddingLeft: 6,
+    paddingRight: 6,
+    paddingTop: 3,
+    paddingBottom: 3,
+    borderRadius: 3,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  tendenciaPositiva: {
+    backgroundColor: '#d1fae5',
+    color: '#065f46',
+  },
+  tendenciaEstable: {
+    backgroundColor: '#f3f4f6',
+    color: '#374151',
+  },
+  tendenciaNegativa: {
+    backgroundColor: '#fee2e2',
+    color: '#991b1b',
+  },
 });
 
 // ==========================================
@@ -201,11 +310,83 @@ const ReviewSection: React.FC<{ title: string; review: ReviewSnippet | null; emp
   </View>
 );
 
+const AnalysisSection: React.FC<{ analysis: AiAnalysis }> = ({ analysis }) => {
+  const tendenciaLabel = {
+    positiva: 'Tendencia positiva',
+    estable: 'Tendencia estable',
+    negativa: 'Tendencia negativa',
+  }[analysis.tendencia] || 'Tendencia estable';
+
+  const tendenciaStyle = {
+    positiva: styles.tendenciaPositiva,
+    estable: styles.tendenciaEstable,
+    negativa: styles.tendenciaNegativa,
+  }[analysis.tendencia] || styles.tendenciaEstable;
+
+  const prioridadStyle = (prioridad: string) => {
+    if (prioridad === 'alta') return styles.prioridadAlta;
+    if (prioridad === 'media') return styles.prioridadMedia;
+    return styles.prioridadBaja;
+  };
+
+  return (
+    <View style={styles.analysisSection}>
+      <Text style={styles.analysisSectionTitle}>Análisis y recomendaciones</Text>
+
+      <View style={[styles.tendenciaBadge, tendenciaStyle]}>
+        <Text>{tendenciaLabel}</Text>
+      </View>
+
+      {analysis.resumen_general && (
+        <Text style={styles.analysisResumen}>{analysis.resumen_general}</Text>
+      )}
+
+      {analysis.fortalezas.length > 0 && (
+        <>
+          <Text style={styles.analysisSubTitle}>Fortalezas</Text>
+          <View style={styles.analysisBulletList}>
+            {analysis.fortalezas.map((f, i) => (
+              <Text key={`fortaleza-${i}`} style={styles.analysisBullet}>• {f}</Text>
+            ))}
+          </View>
+        </>
+      )}
+
+      {analysis.debilidades.length > 0 && (
+        <>
+          <Text style={styles.analysisSubTitle}>Debilidades</Text>
+          <View style={styles.analysisBulletList}>
+            {analysis.debilidades.map((d, i) => (
+              <Text key={`debilidad-${i}`} style={styles.analysisBullet}>• {d}</Text>
+            ))}
+          </View>
+        </>
+      )}
+
+      {analysis.recomendaciones.length > 0 && (
+        <>
+          <Text style={styles.analysisSubTitle}>Recomendaciones accionables</Text>
+          {analysis.recomendaciones.map((r, i) => (
+            <View key={`rec-${i}`} style={styles.recomendacionCard}>
+              <View style={[styles.prioridadBadge, prioridadStyle(r.prioridad)]}>
+                <Text>Prioridad {r.prioridad}</Text>
+              </View>
+              <Text style={styles.recomendacionTitulo}>{r.titulo}</Text>
+              <Text style={styles.recomendacionDescripcion}>{r.descripcion}</Text>
+            </View>
+          ))}
+        </>
+      )}
+    </View>
+  );
+};
+
 // ==========================================
 // DOCUMENTO PRINCIPAL
 // ==========================================
 export const ReportPDFDocument: React.FC<ReportPDFDocumentProps> = ({ report, businessName }) => {
   const { metrics } = report;
+  const aiAnalysis = metrics.ai_analysis;
   const ratingText =
     metrics.current_rating !== null
       ? `${metrics.current_rating.toFixed(1)} ${stars(metrics.current_rating)}`
@@ -260,6 +441,9 @@ export const ReportPDFDocument: React.FC<ReportPDFDocumentProps> = ({ report, bu
           review={metrics.top_negative_review}
           emptyText="No hubo reseñas negativas en este período."
         />
+
+        {/* ANÁLISIS Y RECOMENDACIONES (IA) */}
+        {aiAnalysis && <AnalysisSection analysis={aiAnalysis} />}
 
         <Text style={styles.footer} fixed>
           Generado por ReseñIA - Sistema de análisis de reseñas verificadas

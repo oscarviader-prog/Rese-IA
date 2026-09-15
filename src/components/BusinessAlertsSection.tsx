@@ -21,7 +21,7 @@ interface BusinessAlertsSectionProps {
 
 interface Alert {
   id: string;
-  alert_type: 'new_review' | 'rating_change';
+  alert_type: 'new_review' | 'rating_change' | 'low_rating_review' | 'review_spike' | 'no_activity';
   severity: 'info' | 'warning' | 'critical';
   title: string;
   message: string | null;
@@ -59,6 +59,9 @@ const formatRelativeDate = (dateStr: string): string => {
 const getAlertTypeLabel = (alertType: string): string => {
   if (alertType === 'new_review') return 'Nueva reseña';
   if (alertType === 'rating_change') return 'Cambio de rating';
+  if (alertType === 'low_rating_review') return 'Reseña de baja puntuación';
+  if (alertType === 'review_spike') return 'Aumento de reseñas';
+  if (alertType === 'no_activity') return 'Sin actividad reciente';
   return alertType;
 };
 

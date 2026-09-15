@@ -16,7 +16,11 @@ import {
   CheckCircle2,
   ExternalLink,
   PlusCircle,
-  Calendar
+  Calendar,
+  Sparkles,
+  ThumbsUp,
+  ThumbsDown,
+  Minus
 } from 'lucide-react';
 import { ReviewModal } from './ReviewModal';
 import { NewReview } from '../types';
@@ -57,6 +61,29 @@ interface PlaceDetailModalProps {
   onClose: () => void;
 }
 
+interface AiPlaceAnalysis {
+  resumen_general: string;
+  lo_bueno: string[];
+  lo_malo: string[];
+  lo_intermedio: string[];
+  veredicto: string;
+}
+
+const VeredictoBadge: React.FC<{ veredicto: string }> = ({ veredicto }) => {
+  const config = {
+    muy_recomendado: { label: 'Muy recomendado', bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300' },
+    recomendado: { label: 'Recomendado', bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-300' },
+    con_reservas: { label: 'Con reservas', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-300' },
+    no_recomendado: { label: 'No recomendado', bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300' }
+  };
+  const style = config[veredicto as keyof typeof config] || config.con_reservas;
+  return (
+    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold border ${style.bg} ${style.text} ${style.border}`}>
+      {style.label}
+    </span>
+  );
+};
+
 export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onClose }) => {
   const [details, setDetails] = useState<GooglePlaceDetails | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -66,6 +93,10 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
   // Custom user reviews added locally
   const [localReviews, setLocalReviews] = useState<NewReview[]>([]);
   const [isWriteReviewOpen, setIsWriteReviewOpen] = useState(false);
+
+  const [aiAnalysis, setAiAnalysis] = useState<AiPlaceAnalysis | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!placeId) {
@@ -83,12 +114,12 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
           throw new Error('Supabase client not initialized');
         }
 
-        const res = await supabase.functions.invoke('get-place-details', {
+        const res = await supabase.functions.invoke('smooth-api', {
           body: { placeId },
         });
 
         if (res.error) {
-          console.warn('Edge function get-place-details note:', res.error);
+          console.warn('Edge function smooth-api note:', res.error);
           setDetails({
             id: placeId,
             displayName: { text: 'Establecimiento Seleccionado' },
@@ -151,6 +182,48 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
     checkVerification();
   }, [placeId]);
 
+  useEffect(() => {
+    const currentPlaceId = details?.id || placeId;
+    const currentReviews = details?.reviews || [];
+
+    if (!currentPlaceId || currentReviews.length === 0) return;
+
+    const fetchAnalysis = async () => {
+      setAnalysisLoading(true);
+      setAnalysisError(null);
+      try {
+        const { data, error } = await supabase.functions.invoke('analyze-place-reviews', {
+          body: {
+            place_id: currentPlaceId,
+            business_name: details?.displayName?.text,
+            reviews: currentReviews.map((r) => ({
+              rating: r.rating || 5,
+              text: r.text?.text || '',
+              author_name: r.authorAttribution?.displayName || 'Anónimo'
+            }))
+          }
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data?.success && data?.analysis) {
+          setAiAnalysis(data.analysis);
+        } else {
+          setAnalysisError('No se pudo generar el análisis');
+        }
+      } catch (err) {
+        console.error('Error al analizar reseñas:', err);
+        setAnalysisError('Error al generar el análisis');
+      } finally {
+        setAnalysisLoading(false);
+      }
+    };
+
+    fetchAnalysis();
+  }, [details?.id, details?.reviews?.length, placeId]);
+
   if (!placeId) return null;
 
   const handleAddLocalReview = (newReview: NewReview) => {
@@ -166,8 +239,11 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
   const category = details?.primaryTypeDisplayName?.text || 'Negocio';
   const reviews = details?.reviews || [];
 
+  console.log('DEBUG PlaceDetailModal - details completo:', details);
+  console.log('DEBUG PlaceDetailModal - reviews array:', reviews);
+  console.log('DEBUG PlaceDetailModal - reviews length:', reviews.length);
+
   // ReseñIA Calculated Anti-Bot Metrics
-  const botPercentage = Math.round((rating > 4.5 ? 12 : 5));
   const realRating = Math.max(3.5, Number((rating * 0.92).toFixed(1)));
   const isNoteInflated = rating >= 4.6;
 
@@ -328,6 +404,84 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
                   </div>
                 </div>
               </div>
+
+              {/* AI Reviews Analysis Section */}
+              {reviews.length > 0 && (
+                <div className="mt-6 rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Sparkles className="w-5 h-5 text-teal-600" />
+                    <h3 className="text-lg font-semibold text-gray-900">Análisis IA de reseñas</h3>
+                  </div>
+
+                  {analysisLoading && (
+                    <div className="flex items-center gap-3 py-6 text-gray-500">
+                      <Loader2 className="w-5 h-5 animate-spin text-teal-600" />
+                      <span className="text-sm">Generando análisis de las reseñas...</span>
+                    </div>
+                  )}
+
+                  {analysisError && (
+                    <div className="py-4 text-sm text-red-600">
+                      {analysisError}
+                    </div>
+                  )}
+
+                  {aiAnalysis && !analysisLoading && (
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <VeredictoBadge veredicto={aiAnalysis.veredicto} />
+                      </div>
+
+                      <p className="text-sm text-gray-700 leading-relaxed italic">
+                        {aiAnalysis.resumen_general}
+                      </p>
+
+                      {aiAnalysis.lo_bueno.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-emerald-700 mb-2 flex items-center gap-1">
+                            <ThumbsUp className="w-4 h-4" /> Lo bueno
+                          </h4>
+                          <ul className="space-y-1 pl-4">
+                            {aiAnalysis.lo_bueno.map((item, i) => (
+                              <li key={`bueno-${i}`} className="text-sm text-gray-700 list-disc">{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {aiAnalysis.lo_malo.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
+                            <ThumbsDown className="w-4 h-4" /> Lo malo
+                          </h4>
+                          <ul className="space-y-1 pl-4">
+                            {aiAnalysis.lo_malo.map((item, i) => (
+                              <li key={`malo-${i}`} className="text-sm text-gray-700 list-disc">{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {aiAnalysis.lo_intermedio.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-1">
+                            <Minus className="w-4 h-4" /> Aspectos mixtos
+                          </h4>
+                          <ul className="space-y-1 pl-4">
+                            {aiAnalysis.lo_intermedio.map((item, i) => (
+                              <li key={`inter-${i}`} className="text-sm text-gray-700 list-disc">{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <p className="text-xs text-gray-400 italic mt-3">
+                        Análisis basado en las {reviews.length} reseñas más recientes de Google.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Google Reviews Section */}
               <div className="space-y-3">
