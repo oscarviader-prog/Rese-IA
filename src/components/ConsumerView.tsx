@@ -10,6 +10,7 @@ import { AlertSettingsSection } from './AlertSettingsSection';
 import { FavoriteButton } from './FavoriteButton';
 import { ConsumerChatFloating } from './ConsumerChatFloating';
 import { ConsumerPlaceActions } from './ConsumerPlaceActions';
+import { ConsumerRecommendationReasons } from './ConsumerRecommendationReasons';
 import { GooglePlaceDetails, GooglePlaceReview } from './PlaceDetailModal';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -380,6 +381,17 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
                 )}
               </div>
             )}
+
+            {/* Por qué ReseñIA recomienda este establecimiento: factores
+                reales de Google Places y del perfil del consumidor. Solo se
+                muestran los factores con datos disponibles; nunca coincidencias
+                o porcentajes inventados. */}
+            <ConsumerRecommendationReasons
+              place={selectedPlace}
+              category={category}
+              details={placeDetails}
+              isConsumerAuthed={isConsumerAuthed}
+            />
 
             {/* Reseñas de Google */}
             <div className="mt-5">
