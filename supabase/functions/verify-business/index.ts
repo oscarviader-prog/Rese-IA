@@ -225,6 +225,35 @@ serve(async (req) => {
       })
     }
 
+    // ==========================================
+    // Trigger detect-competitors si se verificó con place_id
+    // ==========================================
+    const googlePlaceId = (googleResult.details as any)?.place_id
+
+    if ((finalStatus === 'verified' || finalStatus === 'partially_verified') && googlePlaceId) {
+      console.log('Disparando detect-competitors para businessId:', businessId)
+
+      // Llamar en fire-and-forget para no bloquear el response al usuario.
+      // Si falla, solo se loguea; el usuario puede llamarlo manualmente después.
+      const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+      const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+      fetch(`${SUPABASE_URL}/functions/v1/detect-competitors`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SERVICE_ROLE_KEY}`
+        },
+        body: JSON.stringify({ businessId })
+      })
+        .then((res) => res.json())
+        .then((data) => console.log('detect-competitors ejecutado:', data))
+        .catch((err) => console.error('Error ejecutando detect-competitors:', err))
+
+      // NOTA: no se hace await intencionalmente. El usuario recibe el response
+      // de verify-business sin esperar a detect-competitors.
+    }
+
     return new Response(
       JSON.stringify({ status: finalStatus, score, results }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
