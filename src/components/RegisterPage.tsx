@@ -197,7 +197,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigate }) => {
                     <span>Consumidor</span>
                   </h3>
                   <p className="text-xs text-[#0a2533]/80 leading-relaxed font-sans-ui">
-                    Analiza productos, empresas y guarda tus favoritos. Consulta valoraciones reales filtradas con IA anti-bots.
+                    Analiza productos, empresas y guarda tus favoritos. Consulta el análisis IA de las reseñas para decidir sin leer opiniones contradictorias.
                   </p>
                 </div>
 

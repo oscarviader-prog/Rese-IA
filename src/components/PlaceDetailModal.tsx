@@ -222,7 +222,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
     };
 
     fetchAnalysis();
-  }, [details?.id, details?.reviews?.length, placeId]);
+  }, [details, placeId]);
 
   if (!placeId) return null;
 
@@ -238,10 +238,6 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
   const website = details?.websiteUri;
   const category = details?.primaryTypeDisplayName?.text || 'Negocio';
   const reviews = details?.reviews || [];
-
-  console.log('DEBUG PlaceDetailModal - details completo:', details);
-  console.log('DEBUG PlaceDetailModal - reviews array:', reviews);
-  console.log('DEBUG PlaceDetailModal - reviews length:', reviews.length);
 
   // ReseñIA Calculated Anti-Bot Metrics
   const realRating = Math.max(3.5, Number((rating * 0.92).toFixed(1)));
@@ -406,7 +402,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
               </div>
 
               {/* AI Reviews Analysis Section */}
-              {reviews.length > 0 && (
+              {(reviews.length > 0 || aiAnalysis || analysisLoading || analysisError) && (
                 <div className="mt-6 rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
                   <div className="flex items-center gap-2 mb-4">
                     <Sparkles className="w-5 h-5 text-teal-600" />
@@ -476,7 +472,7 @@ export const PlaceDetailModal: React.FC<PlaceDetailModalProps> = ({ placeId, onC
                       )}
 
                       <p className="text-xs text-gray-400 italic mt-3">
-                        Análisis basado en las {reviews.length} reseñas más recientes de Google.
+                        Análisis basado en las {details?.reviews?.length || 0} reseñas más recientes de Google.
                       </p>
                     </div>
                   )}
