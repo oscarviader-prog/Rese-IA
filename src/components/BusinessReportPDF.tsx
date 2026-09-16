@@ -446,7 +446,7 @@ export const ReportPDFDocument: React.FC<ReportPDFDocumentProps> = ({ report, bu
         {aiAnalysis && <AnalysisSection analysis={aiAnalysis} />}
 
         <Text style={styles.footer} fixed>
-          Generado por ReseñIA - Sistema de análisis de reseñas verificadas
+          Generado por ReseñIA - Análisis IA de reseñas
         </Text>
       </Page>
     </Document>

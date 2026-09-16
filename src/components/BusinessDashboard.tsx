@@ -254,7 +254,7 @@ const UpcomingSection: React.FC = () => (
   <section className="mt-6 rounded-2xl bg-gray-100 p-6">
     <h3 className="text-lg font-semibold text-gray-700 mb-2">Próximamente</h3>
     <p className="text-sm text-gray-600">
-      Aquí podrás gestionar tus ofertas, ver reseñas de tus clientes y consultar tu Nota Real. Estas funciones estarán disponibles próximamente.
+      Aquí podrás gestionar tus ofertas, ver reseñas de tus clientes y consultar tus análisis. Estas funciones estarán disponibles próximamente.
     </p>
   </section>
 );

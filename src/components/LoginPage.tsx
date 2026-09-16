@@ -123,10 +123,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, initialRole = 
               </div>
               <div>
                 <h4 className="text-xs font-bold text-white font-mono-code">
-                  Detección de reseñas sintéticas
+                  Análisis inteligente de reseñas
                 </h4>
                 <p className="text-xs text-sky-200/70">
-                  Algoritmos antinaturales identifican bots y compras falsas.
+                  Análisis IA de todas las reseñas para que decidas rápido y con criterio.
                 </p>
               </div>
             </div>
@@ -187,7 +187,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, initialRole = 
               {/* Dynamic Description Text */}
               <p className="mt-2.5 text-xs text-[#0a2533]/80 bg-white/60 p-2.5 rounded-lg border border-[#00f2ff]/30 font-sans-ui">
                 {activeRole === 'consumer'
-                  ? '👤 Inicia sesión como Consumidor para consultar la puntuación real anti-bots de locales y productos.'
+                  ? '👤 Inicia sesión como Consumidor para ver el análisis IA de reseñas de locales y productos.'
                   : '🏢 Inicia sesión como Empresa para gestionar tu reputación online, responder con IA y auditar tus reseñas.'}
               </p>
             </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sparkles, AlertTriangle, CheckCircle2, Bot, Send } from 'lucide-react';
+import { X, Sparkles, Bot, Send } from 'lucide-react';
 import { NewReview } from '../types';
 
 interface ReviewModalProps {
@@ -17,7 +17,6 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [botScore, setBotScore] = useState<number | null>(null);
 
   if (!isOpen) return null;
 
@@ -25,29 +24,19 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
     if (!comment.trim()) return;
 
     setIsAnalyzing(true);
-    setBotScore(null);
 
-    // Simulate AI Anti-Bot detection logic
     setTimeout(() => {
-      // If repetitive keywords like "excelente producto mil estrellas" or ultra repetitive phrasing -> higher bot risk
-      const isSuspect = comment.length < 15 || /excelente|maravilloso 100%|compre ya/i.test(comment);
-      const calculatedBotRisk = isSuspect ? Math.floor(Math.random() * 40 + 55) : Math.floor(Math.random() * 8 + 2);
-      
-      setBotScore(calculatedBotRisk);
       setIsAnalyzing(false);
 
-      setTimeout(() => {
-        onAddReview({
-          author: author.trim() || 'Usuario Anónimo',
-          rating,
-          comment: comment.trim(),
-          date: 'Hace un momento',
-        });
-        setAuthor('');
-        setComment('');
-        setBotScore(null);
-        onClose();
-      }, 1200);
+      onAddReview({
+        author: author.trim() || 'Usuario Anónimo',
+        rating,
+        comment: comment.trim(),
+        date: 'Hace un momento',
+      });
+      setAuthor('');
+      setComment('');
+      onClose();
     }, 1000);
   };
 
@@ -70,7 +59,7 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
               Añadir nueva reseña
             </h3>
             <p className="text-xs font-mono-code text-slate-600">
-              Análisis Anti-Bot en tiempo real por ReseñIA
+              Análisis IA en tiempo real por ReseñIA
             </p>
           </div>
         </div>
@@ -130,28 +119,8 @@ export const ReviewModal: React.FC<ReviewModalProps> = ({
             <div className="p-3 bg-cyan-900/10 rounded-xl border border-cyan-400 flex items-center gap-3 animate-pulse">
               <Bot className="w-5 h-5 text-cyan-700 animate-spin" />
               <span className="text-xs font-mono-code text-cyan-900 font-bold">
-                Analizando sintaxis, patrones de lenguaje y vectores anti-bot...
+                Analizando reseña...
               </span>
-            </div>
-          )}
-
-          {botScore !== null && (
-            <div className={`p-3 rounded-xl border flex items-center gap-3 ${
-              botScore > 30 ? 'bg-red-100 border-red-300 text-red-900' : 'bg-emerald-100 border-emerald-300 text-emerald-900'
-            }`}>
-              {botScore > 30 ? (
-                <AlertTriangle className="w-5 h-5 text-red-700 flex-shrink-0" />
-              ) : (
-                <CheckCircle2 className="w-5 h-5 text-emerald-700 flex-shrink-0" />
-              )}
-              <div className="text-xs font-mono-code">
-                <span className="font-bold">
-                  Riesgo de Bot: {botScore}% — {botScore > 30 ? 'Riesgo moderado' : 'Legítimo (Alta confianza)'}
-                </span>
-                <p className="text-[11px] opacity-80">
-                  Reseña procesada y ponderada en la nota real.
-                </p>
-              </div>
             </div>
           )}
 

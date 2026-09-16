@@ -14,7 +14,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onNavigate }) => {
       <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/90 text-[#00f2ff] border border-[#00f2ff]/50 mb-8 shadow-[0_0_20px_rgba(0,242,255,0.3)] animate-pulse">
         <ShieldCheck className="w-4 h-4 text-[#00f2ff]" />
         <span className="text-xs font-mono-code font-bold tracking-widest uppercase">
-          ÍNDICE DE CONFIANZA ANTI-BOTS
+          ANÁLISIS IA DE RESEÑAS
         </span>
       </div>
 
@@ -29,7 +29,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onNavigate }) => {
 
       {/* Hero Paragraph */}
       <p className="text-base sm:text-lg text-slate-300 max-w-2xl font-sans-ui leading-relaxed mb-10">
-        Analizamos y sintetizamos miles de opiniones para darte un veredicto claro, sin tener que leer reseñas contradictorias. Detectamos patrones de bots para que confíes en la puntuación real.
+        Analizamos y sintetizamos las reseñas para darte un veredicto claro: lo bueno, lo malo y lo intermedio. Sin tener que leer opiniones contradictorias.
       </p>
 
       {/* Tarjeta Central "VEREDICTO" */}
@@ -90,7 +90,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onNavigate }) => {
             <ArrowRight className="w-5 h-5 text-cyan-700 transition-transform group-hover:translate-x-1" />
           </h3>
           <p className="text-sm font-sans-ui text-slate-700 leading-snug">
-            Quiero saber si vale la pena antes de ir y descubrir la nota real ponderada.
+            Quiero saber si vale la pena antes de ir con un análisis IA claro.
           </p>
         </PastelCard>
 
@@ -112,7 +112,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onNavigate }) => {
             <ArrowRight className="w-5 h-5 text-purple-700 transition-transform group-hover:translate-x-1" />
           </h3>
           <p className="text-sm font-sans-ui text-slate-700 leading-snug">
-            Quiero gestionar mi reputación, automatizar respuestas y detectar falsas reseñas.
+            Quiero gestionar mi reputación online, automatizar respuestas y recibir alertas.
           </p>
         </PastelCard>
       </div>
