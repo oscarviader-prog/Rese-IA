@@ -160,10 +160,65 @@ serve(async (req) => {
       }
     }
 
+    // ==========================================
+    // 5. Snapshots de competidores
+    // ==========================================
+    console.log('Iniciando snapshots de competidores...')
+
+    const { data: competitors, error: competitorsError } = await supabase
+      .from('business_competitors')
+      .select('id, competitor_place_id, competitor_name')
+      .eq('business_id', businessId)
+
+    let competitorSnapshotsCount = 0
+
+    if (competitorsError) {
+      console.error('Error consultando competidores:', competitorsError)
+    } else if (!competitors || competitors.length === 0) {
+      console.log('No hay competidores registrados para este negocio')
+    } else {
+      console.log(`Encontrados ${competitors.length} competidores, capturando snapshots...`)
+
+      for (const competitor of competitors) {
+        try {
+          const competitorData = await obtenerDetallesGoogle(competitor.competitor_place_id)
+
+          const competitorRating = competitorData?.rating ?? null
+          const competitorRatingsTotal = competitorData?.userRatingCount ?? 0
+
+          if (competitorRating === null) {
+            console.log(`Sin rating para competidor ${competitor.competitor_name}, saltando`)
+            continue
+          }
+
+          const { error: snapshotError } = await supabase
+            .from('competitor_snapshots')
+            .insert({
+              competitor_id: competitor.id,
+              rating: competitorRating,
+              user_ratings_total: competitorRatingsTotal,
+              snapshot_date: new Date().toISOString()
+            })
+
+          if (snapshotError) {
+            console.error(`Error insertando snapshot para ${competitor.competitor_name}:`, snapshotError)
+          } else {
+            competitorSnapshotsCount++
+          }
+        } catch (competitorErr) {
+          console.error(`Error consultando Google Places para ${competitor.competitor_name}:`, competitorErr)
+          // No bloquea el flujo, sigue con el siguiente competidor.
+        }
+      }
+
+      console.log(`Snapshots de competidores capturados: ${competitorSnapshotsCount}`)
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
-        snapshot: { rating, user_ratings_total: userRatingsTotal, reviews_captured: reviewsCaptured }
+        snapshot: { rating, user_ratings_total: userRatingsTotal, reviews_captured: reviewsCaptured },
+        competitor_snapshots_captured: competitorSnapshotsCount
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
