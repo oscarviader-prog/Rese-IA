@@ -37,6 +37,9 @@ import {
   Building2,
   Star,
   HelpCircle,
+  ThumbsUp,
+  ThumbsDown,
+  Minus,
 } from 'lucide-react';
 
 interface ConsumerViewProps {
@@ -46,6 +49,21 @@ interface ConsumerViewProps {
   selectedPlace?: PlaceResult | null;
   onOpenChat?: () => void;
 }
+
+const VeredictoBadge: React.FC<{ veredicto: string }> = ({ veredicto }) => {
+  const config = {
+    muy_recomendado: { label: 'Muy recomendado', bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300' },
+    recomendado: { label: 'Recomendado', bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-300' },
+    con_reservas: { label: 'Con reservas', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-300' },
+    no_recomendado: { label: 'No recomendado', bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300' }
+  };
+  const style = config[veredicto as keyof typeof config] || config.con_reservas;
+  return (
+    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold border ${style.bg} ${style.text} ${style.border}`}>
+      {style.label}
+    </span>
+  );
+};
 
 export const ConsumerView: React.FC<ConsumerViewProps> = ({
   searchQuery = '',
@@ -90,6 +108,16 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
   const [placeDetails, setPlaceDetails] = useState<GooglePlaceDetails | null>(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsError, setDetailsError] = useState(false);
+
+  const [aiAnalysis, setAiAnalysis] = useState<{
+    resumen_general: string;
+    lo_bueno: string[];
+    lo_malo: string[];
+    lo_intermedio: string[];
+    veredicto: string;
+  } | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   useEffect(() => {
     setUserBookings(getStoredBookings());
@@ -166,6 +194,49 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
       active = false;
     };
   }, [selectedPlace?.id]);
+
+  useEffect(() => {
+    const currentPlaceId = placeDetails?.id || selectedPlace?.id;
+    const currentReviews = placeDetails?.reviews || [];
+
+    if (!currentPlaceId || currentReviews.length === 0) {
+      setAiAnalysis(null);
+      return;
+    }
+
+    const fetchAnalysis = async () => {
+      setAnalysisLoading(true);
+      setAnalysisError(null);
+      try {
+        const { data, error } = await supabase.functions.invoke('analyze-place-reviews', {
+          body: {
+            place_id: currentPlaceId,
+            business_name: placeDetails?.displayName?.text || selectedPlace?.displayName?.text,
+            reviews: currentReviews.map((r) => ({
+              rating: r.rating || 5,
+              text: r.text?.text || '',
+              author_name: r.authorAttribution?.displayName || 'Anónimo'
+            }))
+          }
+        });
+
+        if (error) throw error;
+
+        if (data?.success && data?.analysis) {
+          setAiAnalysis(data.analysis);
+        } else {
+          setAnalysisError('No se pudo generar el análisis');
+        }
+      } catch (err) {
+        console.error('Error al analizar reseñas:', err);
+        setAnalysisError('Error al generar el análisis');
+      } finally {
+        setAnalysisLoading(false);
+      }
+    };
+
+    fetchAnalysis();
+  }, [placeDetails, selectedPlace?.id]);
 
   const handleAddReview = (newReview: NewReview) => {
     setUserReviews((prev) => [newReview, ...prev]);
@@ -392,6 +463,83 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
               details={placeDetails}
               isConsumerAuthed={isConsumerAuthed}
             />
+
+            {(reviews.length > 0 || aiAnalysis || analysisLoading || analysisError) && (
+              <div className="mt-6 rounded-2xl bg-white border border-gray-200 p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                  <Sparkles className="w-5 h-5 text-teal-600" />
+                  <h3 className="text-lg font-semibold text-gray-900">Análisis IA de reseñas</h3>
+                </div>
+
+                {analysisLoading && (
+                  <div className="flex items-center gap-3 py-6 text-gray-500">
+                    <Loader2 className="w-5 h-5 animate-spin text-teal-600" />
+                    <span className="text-sm">Generando análisis de las reseñas...</span>
+                  </div>
+                )}
+
+                {analysisError && (
+                  <div className="py-4 text-sm text-red-600">
+                    {analysisError}
+                  </div>
+                )}
+
+                {aiAnalysis && !analysisLoading && (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <VeredictoBadge veredicto={aiAnalysis.veredicto} />
+                    </div>
+
+                    <p className="text-sm text-gray-700 leading-relaxed italic">
+                      {aiAnalysis.resumen_general}
+                    </p>
+
+                    {aiAnalysis.lo_bueno.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-emerald-700 mb-2 flex items-center gap-1">
+                          <ThumbsUp className="w-4 h-4" /> Lo bueno
+                        </h4>
+                        <ul className="space-y-1 pl-4">
+                          {aiAnalysis.lo_bueno.map((item, i) => (
+                            <li key={`bueno-${i}`} className="text-sm text-gray-700 list-disc">{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {aiAnalysis.lo_malo.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
+                          <ThumbsDown className="w-4 h-4" /> Lo malo
+                        </h4>
+                        <ul className="space-y-1 pl-4">
+                          {aiAnalysis.lo_malo.map((item, i) => (
+                            <li key={`malo-${i}`} className="text-sm text-gray-700 list-disc">{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {aiAnalysis.lo_intermedio.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-1">
+                          <Minus className="w-4 h-4" /> Aspectos mixtos
+                        </h4>
+                        <ul className="space-y-1 pl-4">
+                          {aiAnalysis.lo_intermedio.map((item, i) => (
+                            <li key={`inter-${i}`} className="text-sm text-gray-700 list-disc">{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-gray-400 italic mt-3">
+                      Análisis basado en las {placeDetails?.reviews?.length || 0} reseñas más recientes de Google.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Reseñas de Google */}
             <div className="mt-5">
