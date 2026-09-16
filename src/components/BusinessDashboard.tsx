@@ -17,6 +17,7 @@ import { BusinessMetricsDashboard } from './BusinessMetricsDashboard';
 import { BusinessAlertsSection } from './BusinessAlertsSection';
 import { BusinessAlertSettingsSection } from './BusinessAlertSettingsSection';
 import { BusinessReportsSection } from './BusinessReportsSection';
+import { BusinessCompetitiveAnalysisSection } from './BusinessCompetitiveAnalysisSection';
 
 interface BusinessDashboardProps {
   onBackToRegister?: () => void;
@@ -433,6 +434,8 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
             </div>
 
             <BusinessAlertSettingsSection businessId={business.id} />
+
+            <BusinessCompetitiveAnalysisSection businessId={business.id} />
           </div>
         </div>
       </div>
@@ -457,6 +460,7 @@ export const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ onBackToRe
           </div>
           <BusinessDataList business={business} onUpdated={handleBusinessUpdated} />
           <BusinessAlertSettingsSection businessId={business.id} />
+          <BusinessCompetitiveAnalysisSection businessId={business.id} />
           <UpcomingSection />
         </div>
       </div>
