@@ -922,7 +922,7 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
       </div>
 
       {/* Chatbot flotante (solo usuarios autenticados) */}
-      <ConsumerChatFloating />
+      <ConsumerChatFloating onSelectPlace={onSelectPlace} />
 
       {/* Review Modal */}
       <ReviewModal

@@ -30,6 +30,22 @@ interface RealPlace {
   numeroResenas: number | null
 }
 
+// Forma cruda de un resultado de Google Places tal y como lo devuelve
+// `search-places`. Coincide con el tipo `PlaceResult` del frontend
+// (src/components/SearchBar.tsx) para poder reenviarlo sin transformarlo.
+interface PlaceCandidate {
+  id: string
+  displayName?: { text?: string }
+  formattedAddress?: string
+  rating?: number
+  userRatingCount?: number
+  primaryTypeDisplayName?: { text?: string }
+  primaryType?: string
+  types?: string[]
+}
+
+type PlacesSearchStatus = 'not_needed' | 'ok' | 'empty' | 'error'
+
 interface FechaImportante {
   name: string
   day: number
@@ -204,7 +220,7 @@ function diasHasta(hoy: Date, fecha: Date): number {
 
 // ---- Heurísticas de relevancia (sin datos inventados, solo orientan el contexto) ----
 
-const REGEX_PETICION_LUGARES = /(recomienda|recomiendame|recomiéndame|busca|buscar|encuentra|encuentre|necesito|quiero|sugiere|sugerir|dónde|donde puedo|donde comer|donde cenar|qué lugares|que lugares|qué sitios|que sitios|qué establecimientos|que establecimientos|qué restaurantes|que restaurantes|cafeterías|cafeterias|bares|sitios|lugares|establecimient|restaurant|cafeter|cena|cenar|comer|desayuna|tomar algo|opciones|plan|llevame|llevarme|celebrar|organizar|sugerencia|regalar|quiero comer|quiero cenar)/i
+const REGEX_PETICION_LUGARES = /(recomienda|recomiendame|recomiéndame|busca|buscar|encuentra|encuentre|necesito|quiero|sugiere|sugerir|dónde|donde puedo|donde comer|donde cenar|qué lugares|que lugares|qué sitios|que sitios|qué establecimientos|que establecimientos|qué restaurantes|que restaurantes|cafeterías|cafeterias|bares|sitios|lugares|establecimient|restaurant|cafeter|cena|cenar|comer|desayuna|tomar algo|opci|plan|llevame|llevarme|celebrar|organizar|sugerencia|regalar|quiero comer|quiero cenar|otro sitio|otros sitios|otra alternativa|otras alternativas|más cerca|mas cerca|más barato|mas barato|más económico|mas economico|algo distinto|algo diferente|no me convence)/i
 
 const REGEX_FECHAS_RELEVANTES = /(fecha|ocasión|ocasion|celebr|festeja|aniversario|cumplea|boda|navidad|año nuevo|noche vieja|san valent|viernes|sabado|sábado|domingo|lunes|martes|miércoles|miercoles|jueves|mañana|fin de semana|semana que viene|próximo|proximo|hoy|esta tarde|esta noche|su cumple|su aniversario|quedada)/i
 
@@ -252,19 +268,104 @@ function formatearResultadosReales(places: RealPlace[]): string {
     .join('\n')
 }
 
+const ACENTOS: Record<string, string> = { á: 'a', é: 'e', í: 'i', ó: 'o', ú: 'u', ñ: 'n', ü: 'u' }
+function sinAcentos(texto: string): string {
+  return texto.toLowerCase().replace(/[áéíóúñü]/g, (c) => ACENTOS[c] || c)
+}
+
+// Palabras demasiado frecuentes/genéricas para discriminar entre establecimientos.
+const STOPWORDS = new Set([
+  'quiero', 'busco', 'necesito', 'para', 'este', 'esta', 'estos', 'estas', 'con', 'sin',
+  'de', 'del', 'la', 'el', 'los', 'las', 'un', 'una', 'unos', 'unas', 'y', 'o', 'en',
+  'que', 'me', 'te', 'se', 'su', 'sus', 'por', 'algo', 'sitio', 'sitios', 'lugar',
+  'lugares', 'restaurante', 'restaurantes', 'establecimiento', 'establecimientos',
+  'recomiendame', 'recomienda', 'recomiéndame', 'donde', 'dónde', 'sobre', 'esa', 'ese',
+  'mas', 'más', 'otra', 'otro', 'otras', 'otros',
+])
+
+function tokensRelevantes(texto: string): string[] {
+  return sinAcentos(texto)
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 4 && !STOPWORDS.has(t))
+}
+
 /**
- * Busca establecimientos reales para la consulta del consumidor reutilizando la
- * Edge Function `search-places` (Google Places, sesgo en la zona de Las Palmas).
- * Devuelve un array vacío ante cualquier error para no bloquear la conversación.
+ * Puntúa un candidato de Google Places según cuántos términos relevantes de la
+ * conversación aparecen en su nombre/categoría/tipos/dirección. No usa datos
+ * inventados: solo compara texto real devuelto por Google Places.
  */
-async function buscarEstablecimientosReales(message: string, userCity: string | undefined): Promise<RealPlace[]> {
+function puntuarCandidato(place: PlaceCandidate, tokens: string[]): number {
+  const haystack = sinAcentos(
+    [
+      place.displayName?.text,
+      place.primaryTypeDisplayName?.text,
+      place.primaryType,
+      ...(place.types || []),
+      place.formattedAddress,
+    ]
+      .filter(Boolean)
+      .join(' ')
+  )
+  let score = 0
+  for (const t of tokens) {
+    if (haystack.includes(t)) score += 1
+  }
+  return score
+}
+
+/**
+ * Ordena los candidatos según: 1) coincidencia con la petición/preferencias
+ * (tokens relevantes), 2) valoración de Google, 3) número de reseñas. La
+ * valoración solo actúa como criterio secundario, nunca como el principal.
+ */
+function rankearCandidatos(candidatos: PlaceCandidate[], criterioTexto: string): PlaceCandidate[] {
+  const tokens = tokensRelevantes(criterioTexto)
+  return candidatos
+    .map((p) => ({ p, score: puntuarCandidato(p, tokens) }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+      const ra = typeof a.p.rating === 'number' ? a.p.rating : -1
+      const rb = typeof b.p.rating === 'number' ? b.p.rating : -1
+      if (rb !== ra) return rb - ra
+      const ca = typeof a.p.userRatingCount === 'number' ? a.p.userRatingCount : -1
+      const cb = typeof b.p.userRatingCount === 'number' ? b.p.userRatingCount : -1
+      return cb - ca
+    })
+    .map((x) => x.p)
+}
+
+function aRealPlace(p: PlaceCandidate): RealPlace {
+  return {
+    nombre: p.displayName?.text?.trim() || '',
+    categoria: p.primaryTypeDisplayName?.text?.trim() || '',
+    direccion: p.formattedAddress?.trim() || '',
+    rating: typeof p.rating === 'number' ? p.rating : null,
+    numeroResenas: typeof p.userRatingCount === 'number' ? p.userRatingCount : null,
+  }
+}
+
+const MAX_RESULTADOS_CHAT = 5
+
+/**
+ * Busca establecimientos reales para la conversación reutilizando la Edge
+ * Function `search-places` (misma infraestructura que la barra de búsqueda:
+ * Google Places, sesgo en la zona de Las Palmas). Nunca inventa resultados:
+ * ante fallo de red o de la API devuelve status 'error' con lista vacía; ante
+ * 0 resultados reales devuelve status 'empty'.
+ */
+async function buscarEstablecimientosReales(
+  criterioTexto: string,
+  userCity: string | undefined
+): Promise<{ status: PlacesSearchStatus; candidatos: PlaceCandidate[] }> {
   try {
-    const peticion = [message.slice(0, 200).trim(), (userCity || '').trim()].filter(Boolean).join(' ')
-    if (peticion.length < 3) return []
+    const peticion = [criterioTexto.slice(0, 300).trim(), (userCity || '').trim()].filter(Boolean).join(' ')
+    if (peticion.length < 3) return { status: 'empty', candidatos: [] }
 
     const url = Deno.env.get('SUPABASE_URL')
     const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-    if (!url || !key) return []
+    if (!url || !key) return { status: 'error', candidatos: [] }
 
     const res = await fetch(`${url.replace(/\/$/, '')}/functions/v1/search-places`, {
       method: 'POST',
@@ -275,39 +376,27 @@ async function buscarEstablecimientosReales(message: string, userCity: string | 
       },
       body: JSON.stringify({ query: peticion }),
     })
-    if (!res.ok) return []
+    if (!res.ok) return { status: 'error', candidatos: [] }
 
     const data = await res.json()
+    if (data && typeof data === 'object' && 'error' in (data as Record<string, unknown>)) {
+      return { status: 'error', candidatos: [] }
+    }
+
     const raw = Array.isArray(data)
       ? data
       : Array.isArray((data as { places?: unknown[] })?.places)
       ? (data as { places: unknown[] }).places
       : []
 
-    return raw
-      .slice(0, 5)
-      .map((p) => {
-        const place = p as {
-          displayName?: { text?: string }
-          name?: string
-          primaryTypeDisplayName?: { text?: string }
-          primaryType?: string
-          formattedAddress?: string
-          rating?: number
-          userRatingCount?: number
-        }
-        return {
-          nombre: place?.displayName?.text?.trim() || place?.name?.trim() || '',
-          categoria: place?.primaryTypeDisplayName?.text?.trim() || place?.primaryType?.trim() || '',
-          direccion: place?.formattedAddress?.trim() || '',
-          rating: typeof place?.rating === 'number' ? place.rating : null,
-          numeroResenas: typeof place?.userRatingCount === 'number' ? place.userRatingCount : null,
-        }
-      })
-      .filter((r) => r.nombre.length > 0)
+    const candidatos = (raw as PlaceCandidate[]).filter((p) => !!p?.id && !!p?.displayName?.text)
+    if (candidatos.length === 0) return { status: 'empty', candidatos: [] }
+
+    const rankeados = rankearCandidatos(candidatos, criterioTexto).slice(0, MAX_RESULTADOS_CHAT)
+    return { status: 'ok', candidatos: rankeados }
   } catch (err) {
     console.warn('consumer-chat: error en búsqueda real de establecimientos:', (err as Error).message)
-    return []
+    return { status: 'error', candidatos: [] }
   }
 }
 
@@ -439,13 +528,49 @@ serve(async (req) => {
     const ciudad = typeof userCity === 'string' ? userCity : undefined
     const mensajeBajado = trimmedMessage.toLowerCase()
 
-    const fechasText =
-      fechas && fechas.length > 0 && REGEX_FECHAS_RELEVANTES.test(mensajeBajado)
-        ? formatearFechas(fechas, mapearEtiquetasGustos(gustosContext), new Date())
-        : ''
+    const fechaRelevanteMatch = fechas && fechas.length > 0 && REGEX_FECHAS_RELEVANTES.test(mensajeBajado)
+    const fechasText = fechaRelevanteMatch
+      ? formatearFechas(fechas!, mapearEtiquetasGustos(gustosContext), new Date())
+      : ''
+    // Gustos asociados a la próxima fecha relevante, para reforzar la búsqueda
+    // real (p. ej. "romántico", "italiana") cuando la petición esté ligada a
+    // una ocasión guardada por el consumidor.
+    const gustosFechaLabels: string[] = fechaRelevanteMatch
+      ? (() => {
+          const mapa = mapearEtiquetasGustos(gustosContext)
+          const hoy = new Date()
+          const proxima = fechas!
+            .map((f) => ({ f, dt: proximaOcurrencia(f, hoy) }))
+            .filter((x) => x.dt !== null)
+            .sort((a, b) => (a.dt as Date).getTime() - (b.dt as Date).getTime())[0]
+          return proxima ? etiquetasGustos(proxima.f.gustos, mapa).split(', ').filter((g) => g && g !== 'No especificados') : []
+        })()
+      : []
 
-    const resultadosRealesText = REGEX_PETICION_LUGARES.test(mensajeBajado)
-      ? formatearResultadosReales(await buscarEstablecimientosReales(trimmedMessage, ciudad))
+    // ¿Debe buscar establecimientos reales ahora? Además de la petición actual,
+    // se considera continuación de una búsqueda activa cuando el asistente
+    // acababa de hacer una pregunta de seguimiento (p. ej. "¿qué tipo de
+    // comida te apetece?" -> "Italiana, tranquilo"), para no perder el hilo.
+    const ultimoTurnoAsistente = [...history].reverse().find((m) => m.role === 'model')
+    const asistentePreguntoAlgo = !!ultimoTurnoAsistente && /\?\s*$/.test(ultimoTurnoAsistente.content.trim())
+    const debeBuscarLugares = REGEX_PETICION_LUGARES.test(mensajeBajado) || asistentePreguntoAlgo
+
+    // La consulta real a Google Places combina los últimos turnos del
+    // consumidor (petición original + matices/refinamientos) en lugar de solo
+    // el último mensaje, para no perder criterios ya dados (tipo de comida,
+    // ambiente, zona...).
+    const ventanaUsuario = fullHistory
+      .filter((m) => m.role === 'user')
+      .slice(-3)
+      .map((m) => m.content)
+    const criterioBusqueda = [...ventanaUsuario, ...gustosFechaLabels].join(' ')
+
+    const busqueda = debeBuscarLugares
+      ? await buscarEstablecimientosReales(criterioBusqueda, ciudad)
+      : { status: 'not_needed' as PlacesSearchStatus, candidatos: [] as PlaceCandidate[] }
+
+    const resultadosRealesText = busqueda.status === 'ok'
+      ? formatearResultadosReales(busqueda.candidatos.map(aRealPlace))
       : ''
 
     const prompt = construirPrompt(
@@ -496,7 +621,14 @@ serve(async (req) => {
     const reply = rawText.trim().replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n')
 
     return new Response(
-      JSON.stringify({ success: true, reply }),
+      JSON.stringify({
+        success: true,
+        reply,
+        // Establecimientos reales (Google Places) para que el frontend los
+        // muestre como tarjetas seleccionables, además del texto del asistente.
+        places: busqueda.status === 'ok' ? busqueda.candidatos : [],
+        placesStatus: busqueda.status,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 

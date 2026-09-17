@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { CATEGORIES, CAPACITY_LABELS } from '../lib/categories';
 import { OCCASION_GUSTOS } from '../lib/importantDates';
+import { PlaceResult } from './SearchBar';
+import { PlaceResultCard } from './PlaceResultCard';
 import {
   Send,
   Loader2,
@@ -12,11 +14,22 @@ import {
   MessageSquareText,
   X,
   Sparkles,
+  SearchX,
 } from 'lucide-react';
+
+type PlacesStatus = 'not_needed' | 'ok' | 'empty' | 'error'
 
 interface ChatMessage {
   role: 'user' | 'model'
   content: string
+  places?: PlaceResult[]
+  placesStatus?: PlacesStatus
+}
+
+interface ConsumerChatFloatingProps {
+  /** Permite seleccionar un establecimiento recomendado y continuar con la
+   * experiencia habitual de ReseñIA (misma ficha que abre la barra de búsqueda). */
+  onSelectPlace?: (placeId: string, place?: PlaceResult) => void
 }
 
 const SUGGESTIONS: string[] = [
@@ -44,7 +57,7 @@ const GUSTOS_CONTEXTO = OCCASION_GUSTOS.map((g) => `${g.id}=${g.label}`).join(' 
  * Muestra sugerencias de consulta pulsables y un panel más grande y cómodo.
  * Solo visible para usuarios autenticados (consumidor o empresa).
  */
-export const ConsumerChatFloating: React.FC = () => {
+export const ConsumerChatFloating: React.FC<ConsumerChatFloatingProps> = ({ onSelectPlace }) => {
   const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -104,7 +117,10 @@ export const ConsumerChatFloating: React.FC = () => {
         throw new Error('El asistente no proporcionó una respuesta válida.')
       }
 
-      setMessages((prev) => [...prev, { role: 'model', content: reply }])
+      const places: PlaceResult[] = Array.isArray(data?.places) ? data.places : []
+      const placesStatus: PlacesStatus = data?.placesStatus || 'not_needed'
+
+      setMessages((prev) => [...prev, { role: 'model', content: reply, places, placesStatus }])
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error desconocido.'
       setError(message)
@@ -120,6 +136,11 @@ export const ConsumerChatFloating: React.FC = () => {
       e.preventDefault()
       sendMessage()
     }
+  }
+
+  const handleSelectPlace = (place: PlaceResult) => {
+    if (onSelectPlace) onSelectPlace(place.id, place)
+    setIsOpen(false)
   }
 
   if (!user) {
@@ -207,32 +228,53 @@ export const ConsumerChatFloating: React.FC = () => {
             )}
 
             {messages.map((msg, idx) => (
-              <div
-                key={idx}
-                className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {msg.role === 'model' && (
-                  <div className="shrink-0 w-7 h-7 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center mt-0.5">
-                    <Bot className="w-4 h-4 text-teal-600" />
+              <div key={idx} className="space-y-2">
+                <div className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  {msg.role === 'model' && (
+                    <div className="shrink-0 w-7 h-7 rounded-lg bg-teal-50 border border-teal-200 flex items-center justify-center mt-0.5">
+                      <Bot className="w-4 h-4 text-teal-600" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-teal-600 text-white rounded-br-md'
+                        : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md'
+                    }`}
+                  >
+                    {msg.content.split('\n').map((line, lineIdx) => (
+                      <React.Fragment key={lineIdx}>
+                        {lineIdx > 0 && <br />}
+                        {line}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                  {msg.role === 'user' && (
+                    <div className="shrink-0 w-7 h-7 rounded-lg bg-teal-100 border border-teal-200 flex items-center justify-center mt-0.5">
+                      <User className="w-4 h-4 text-teal-700" />
+                    </div>
+                  )}
+                </div>
+
+                {msg.role === 'model' && msg.places && msg.places.length > 0 && (
+                  <div className="pl-9 space-y-2">
+                    {msg.places.map((place) => (
+                      <PlaceResultCard key={place.id} place={place} onSelect={handleSelectPlace} compact />
+                    ))}
                   </div>
                 )}
-                <div
-                  className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-teal-600 text-white rounded-br-md'
-                      : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md'
-                  }`}
-                >
-                  {msg.content.split('\n').map((line, lineIdx) => (
-                    <React.Fragment key={lineIdx}>
-                      {lineIdx > 0 && <br />}
-                      {line}
-                    </React.Fragment>
-                  ))}
-                </div>
-                {msg.role === 'user' && (
-                  <div className="shrink-0 w-7 h-7 rounded-lg bg-teal-100 border border-teal-200 flex items-center justify-center mt-0.5">
-                    <User className="w-4 h-4 text-teal-700" />
+
+                {msg.role === 'model' && msg.placesStatus === 'empty' && (
+                  <div className="ml-9 flex items-center gap-2 text-xs text-gray-500 bg-gray-100 border border-gray-200 rounded-lg px-3 py-2">
+                    <SearchX className="w-4 h-4 shrink-0 text-gray-400" />
+                    No he encontrado establecimientos reales para esa búsqueda. Prueba a cambiar el tipo de comida o la zona.
+                  </div>
+                )}
+
+                {msg.role === 'model' && msg.placesStatus === 'error' && (
+                  <div className="ml-9 flex items-center gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-red-500" />
+                    No se pudo consultar Google Places en este momento. Inténtalo de nuevo en unos segundos.
                   </div>
                 )}
               </div>
