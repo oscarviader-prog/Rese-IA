@@ -54,6 +54,7 @@ export interface NewReview {
 
 export interface UserBooking {
   id: string;
+  userId: string;
   userEmail: string;
   userName?: string;
   placeName: string;

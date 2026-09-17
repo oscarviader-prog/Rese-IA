@@ -120,8 +120,8 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   useEffect(() => {
-    setUserBookings(getStoredBookings());
-  }, []);
+    setUserBookings(getStoredBookings(user?.id));
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) {
@@ -252,7 +252,12 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
     const currentPlaceName = placeName;
     const currentPlaceAddress = placeAddress;
 
-    const newBookingData = saveBooking({
+    if (!user?.id) {
+      setIsSendingEmail(false);
+      return;
+    }
+
+    const newBookingData = saveBooking(user.id, {
       id: generatedCode,
       userEmail: reserveEmail,
       userName: `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Cliente',
@@ -267,14 +272,15 @@ export const ConsumerView: React.FC<ConsumerViewProps> = ({
     setTimeout(() => {
       setIsSendingEmail(false);
       setReserveConfirmed(true);
-      setUserBookings(getStoredBookings());
+      setUserBookings(getStoredBookings(user.id));
       setActiveBookingForEmail(newBookingData);
       setIsEmailModalOpen(true);
     }, 1200);
   };
 
   const handleCancelBooking = (id: string) => {
-    const updated = cancelBooking(id);
+    if (!user?.id) return;
+    const updated = cancelBooking(user.id, id);
     setUserBookings(updated);
 
     const cancelledItem = updated.find((b) => b.id === id);
